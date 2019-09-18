@@ -1,0 +1,153 @@
+#' pmfpca
+#'
+#' perform principle compponent analysis on ramclustR object dataset, export plots
+#' @details This function uses the native prcomp() function in R to perform PCA analysis. 
+#' @details Automatic selection of the number of principle components using the AuerGervini method is enabled by the PCDimension and ClassDiscovery packages
+#' @details R PCA AuerGervini objects are attached to the ramclustR object, and summary plots and csv files are written to the stats/pca directory in the working directory
+#' @details a methods narrative is also appended to the $history slot
+#' 
+#' @param ramclustObj ramclustR object to perform PCA on
+#' @param which.data character; which dataset (SpecAbund or SpecAbundAve) to perform PCA on.  
+#' @param scale  character; default = 'pareto'.  will also accept 'uv' or 'none'   
+#' @param which.factors  character vector; i.e. which.factors = c("treatment", "time").   which factors should be used for coloring PCA plots?  
+#' @param num.factors which factors should be treated as numeric? must be subset of 'which.factors'. i.e. c("time")
+#' @param label.by  how should metabolites columns be labelled? one of 'ann' or 'cmpd', typically. 
+#' @param npc "auto" by default (recommended).  This will autoselect number of PCs to use.  Can also be set to any integer value to force more PCs.
+#' @return returns a ramclustR object.  new R object in $pca slot. Optionally, new R object in $AuerGervini slot if npc = "auto".
+#' @importFrom PCDimension AuerGervini compareAgDimMethods 
+#' @importFrom ClassDiscovery SamplePCA
+#' @importFrom ggplot2 theme_bw autoplot
+#' @concept RAMClustR
+#' @author Corey Broeckling
+
+#' @export 
+
+
+pmfpca<-function(ramclustObj=RC,
+                 which.data="SpecAbund",
+                 scale="pareto",
+                 which.factors = c("genotype", "injury", "limb", "age"),
+                 num.factors = c("age"),
+                 label.by = "ann", 
+                 npc = "auto") {
+  
+  if(is.null(ramclustObj)) {
+    stop("must supply ramclustR object as input")
+  }
+  
+  if(!any(grepl("stats", list.dirs()))) {
+    dir.create('stats')
+  }
+  if(!any(grepl("pca", list.dirs()))) {
+    dir.create('stats/pca')
+  }
+  
+  if(length(unique(ramclustObj$ann)) < length(ramclustObj$ann)) ramclustObj$ann <-  make.unique(ramclustObj$ann)
+
+  d <- getData(ramclustObj)
+  
+  if(!is.null(num.factors)) {
+    for(i in 1:length(num.factors)) {
+      d[[1]][,num.factors[i]] <- as.numeric(d[[1]][,num.factors[i]])
+    }
+  }
+  
+  if(length(ramclustObj[[label.by]]) == dim(d[[2]])[2]) {
+    colnames(d[[2]]) <- ramclustObj[[label.by]]
+  }
+  
+  ## autoselect number of principle components using ClassDiscovery and PCDimensions Package tools
+  ## AuerGervini method, in particular.  Use median of all AuerGervini Dimention Methods
+  if(npc == "auto") {
+    force.npc = FALSE
+    spca <- ClassDiscovery::SamplePCA(t(d[[2]]), center = TRUE)
+    ag.obj <- PCDimension::AuerGervini(spca)
+    f <- makeAgCpmFun("Exponential")
+    agfuns <- list(twice=agDimTwiceMean, specc=agDimSpectral,
+                   km=agDimKmeans, km3=agDimKmeans3,
+                   tt=agDimTtest, tt2=agDimTtest2,
+                   cpt=agDimCPT, cpm=f)
+    npc <- median(compareAgDimMethods(ag.obj, agfuns))
+    orig.npc <- npc
+    if(npc < 2)  {npc == 2; force.npc = TRUE}
+  } else {
+    if(!is.integer(npc)) {
+      stop("please set npc to either an iteger value or 'auto'", '\n')
+    }
+  }
+  
+  if(scale == "pareto") {
+    d[[2]] <- scale(d[[2]], center = T, scale = sqrt(apply(d[[2]], 2, FUN = "sd")))
+  }
+  if(scale == "uv") {
+    d[[2]] <- scale(d[[2]], center = T, scale = T)
+  }
+  
+  pc <- prcomp(d[[2]])
+  
+  if(length(npc) <= 5) {plot.pcs <- rep(TRUE, npc)} else {plot.pcs <- rep(FALSE, npc)}
+  plot.pcs[1:2] <- TRUE
+  sig.pcs <- rep(FALSE, npc)
+  for(i in 1:length(which.factors)) {
+    if(min(table(d[[1]][,which.factors[i]])) <2 & !is.numeric(d[[1]][,which.factors[i]])) {
+      stop(paste("Insufficient replication in factor", which.factors[i], '\n'))
+    }
+    for(j in 1:npc) {
+      p <- as.numeric(anova(lm(pc$x[,j]~d[[1]][,which.factors[i]]))[1,"Pr(>F)"])
+      if(p < 0.05) {
+        plot.pcs[j] <- TRUE
+        sig.pcs[j] <- TRUE
+      }
+    }
+  }
+  
+  pdf('stats/pca/plots.pdf', width = 10, height = 6)
+  par(mfrow = c(1,2))
+  plot(ag.obj, agfuns, main = "n PC selection: AuerGervini method",
+       sub = "dashed line(s) indicate all possible nPC options, blue dotted represents median of all", 
+       cex.sub = 0.5)
+  abline(h = npc, col = "blue", lty = 3, lwd = 2)
+  legend(x = "topright", legend = if(force.npc) {paste0("Orig npc = ",orig.npc, "; Forced npc = ", npc)} else {paste("npc =", npc)}, bty = "n")
+  
+  pt.cols <- rep("gray", length(pc$sdev)); pt.cols[1:npc] <- "darkgreen"
+  rel.var <- round((spca@variances)/sum((spca@variances)), digits = 3)
+  plot(1:(2*npc), rel.var[1:(2*npc)], col = pt.cols, mgp = c(3,1,0), ylim = c(0, 1.1*rel.var[1]), 
+              ylab = "% variance explained", pch = 19,
+              main = "screeplot", xlab = "PC", 
+              sub = paste("green points represent PCs used, * (if present) indicates PCSs with response to factor(s)"), 
+              cex.lab = 1, cex.sub = 0.5, type = "b")
+  if(any(sig.pcs)) {
+    points((1:npc)[which(sig.pcs)], (rel.var + (rel.var[1]/20))[which(sig.pcs)], 
+           pch = "*", cex = 1)
+  }
+  
+  par(mfrow = c(1,1))
+  xy <- combn(x = which(plot.pcs),  2)
+  
+  for(i in 1:ncol(xy)) {
+    for(j in 1:length(which.factors)) {
+      print(autoplot(pc, x = xy[1,i], y = xy[2,i], 
+                              data = cbind(d[[1]], d[[2]]), 
+                              colour = which.factors[j], frame = !any(which.factors[j] %in% num.factors), 
+                              width = 5) + theme_bw()) 
+    }
+  }
+  dev.off()
+  
+  loadings.out <- pc$rotation[,1:npc]
+  write.csv(loadings.out, file = "stats/pca/loadings.values.csv")
+  for(i in 1:ncol(loadings.out)) {
+    tmp <-p.adjust(2*pnorm(abs(pc$rotation[,1]), lower.tail=FALSE), method="BH")
+    loadings.out[which(tmp > 0.05),i] <- "NA"
+  }
+  write.csv(pc$rotation, file = "stats/pca/loadings.values.allPCs.csv")
+  write.csv(loadings.out, file = "stats/pca/loadings.outliers.csv")
+  write.csv(pc$x[,1:npc], file = "stats/pca/scores.csv")
+  write.csv(pc$x, file = "stats/pca/scores_allPCs.csv")
+  
+  ramclustObj$pca <- pc
+  if(any(ls() == "ag.obj")) ramclustObj$AuerGervini <- ag.obj
+  
+  return(ramclustObj)
+}
+
