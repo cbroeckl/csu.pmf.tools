@@ -14,9 +14,6 @@
 #' @param label.by  how should metabolites columns be labelled? one of 'ann' or 'cmpd', typically. 
 #' @param npc "auto" by default (recommended).  This will autoselect number of PCs to use.  Can also be set to any integer value to force more PCs.
 #' @return returns a ramclustR object.  new R object in $pca slot. Optionally, new R object in $AuerGervini slot if npc = "auto".
-#' @importFrom PCDimension AuerGervini compareAgDimMethods 
-#' @importFrom ClassDiscovery SamplePCA
-#' @importFrom ggplot2 theme_bw autoplot
 #' @concept RAMClustR
 #' @author Corey Broeckling
 

@@ -19,10 +19,10 @@
 #' @param minTIC Numeric (10).  If outTIC = TRUE, total ion signal minTIC fold lower than the median total ion signal are removed.
 #' @param outTIC Logical (TRUE). Should we remove injections based on total ion signal following peak detection? Uses outlier detection based on the distribution of signal values across samples and a cutoff defined by minTIC (on the low end of the distribution only)  
 #' @param outPCA Logical (TRUE). Should we remove injections based on binned mass distribution after peak detection? Uses outlier detection on PC1 scores.
-#' @param pcut=0.05 Numeric (0.05).  p.value cutoff used to detect outliers.  p values optionall corrected by p.adj (benhamini hochberg by default)
+#' @param pcut Numeric (0.05).  p.value cutoff used to detect outliers.  p values optionall corrected by p.adj (benhamini hochberg by default)
 #' @param p.adj character ("BH"). what pvalue false discovery rate correction to use on outlier detection steps.  see ?p.adjust for options.  
 #' @param snthresh numeric (10). signal to noise threshold used for feature detection (centWave or matchedFilter)
-#' @param mzdiffquad=0.5 mz bin size used for matchedFilter algorithm. 
+#' @param mzdiffquad (0.5) mz bin size used for matchedFilter algorithm. 
 #' @param bwpre numeric (3).  bw parameter used in the feature grouping (correspondence) step BEFORE retention time adjustement
 #' @param bwpost numeric (1.5).  bw parameter used in the feature grouping (correspondence) step AFTER retention time adjustment.  If rt adjustment works well, we should be able to use a lower value than bwpre.
 #' @param minfrac numeric (0.15).  minimum fraction of samples a feature must be found in (of full dataset) to be passed to final sample set.
@@ -35,8 +35,6 @@
 #' @param rem.files vector of integer values. if regroup == TRUE, optional vector of sample numbers to remove.
 
 #' @return returns an xcms object
-#' @importFrom xcms xcmsSet group
-#' @importFrom pcaMethods pca
 #' @concept RAMClustR
 #' @author Corey Broeckling
 

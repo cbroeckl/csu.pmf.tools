@@ -12,8 +12,6 @@ editSampleNames(ramclustObj = RC, delim = "-", cmpdlabel = "cmpd")
 \item{delim}{character; "-" by default - the delimiter for parsing sample names to factors}
 
 \item{cmpdlabel}{= "cmpd";  label the data with the annotation. can also be set to 'ann' for column names assigned as annotatins.}
-
-\item{which.data}{character; which dataset (SpecAbund or SpecAbundAve) to perform PCA on.}
 }
 \value{
 returns a list of length 3: $design is the experimental sample factors after parsing by the delim, $data is the dataset, $full.data is merged $des and $data data.frames.

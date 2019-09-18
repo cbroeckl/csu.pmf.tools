@@ -18,15 +18,21 @@ pmfanova(ramclustObj = RC, anova.name = NULL,
 
 \item{subset}{character vector; must be even length.  If you wish to perform ANOVA only when your factor called 'treatment' is a 'trt' sample and when 'time' is '3', then you would use is i.e. c("treatment", "trt", "time", "3"). vector length must always be even, and with 'factor' followed by 'level'.}
 
-\item{scale}{character; default = 'pareto'.  will also accept 'uv' or 'none'}
+\item{anova.call}{charachter;  the model you wish to run.  i.e. "Trt * Time" or "Trt * Time + (1|Block)"}
 
-\item{which.factors}{character vector; i.e. which.factors = c("treatment", "time").   which factors should be used for coloring PCA plots?}
+\item{posthoc}{character; if you wish to perform post hoc testing, define the posthoc test to use.  i.e. if anova.call is "Trt * Time" you can use "Trt|Time" to specific 'treatment within time' comparisons.}
 
-\item{num.factors}{which factors should be treated as numeric? must be subset of 'which.factors'. i.e. c("time")}
+\item{effectsplots}{logical; if TRUE, plot effect plots in pdf format.  If plotting fails, can set to 'FALSE' to get tabular results only.}
 
-\item{label.by}{how should metabolites columns be labelled? one of 'ann' or 'cmpd', typically.}
+\item{delim}{character; what is the character delimiting factors in the sample names.  generally '-'}
 
-\item{npc}{"auto" by default (recommended).  This will autoselect number of PCs to use.  Can also be set to any integer value to force more PCs.}
+\item{plots}{logical; if plotting is any issue set this to FALSE.}
+
+\item{pcut}{numeric; what is the pvalue cutoff for determining significance?  Used only for plotting.}
+
+\item{p.adj}{character; what p.adjust method should be used.  generally 'fdr' or 'bh' (equivalent). see ?p.adjust}
+
+\item{which.quan;}{chracter vector.  which factors should be interpreted as quantitative?  i.e. c("time", "dose")}
 }
 \value{
 returns a ramclustR object.  new R object in $pca slot. Optionally, new R object in $AuerGervini slot if npc = "auto".

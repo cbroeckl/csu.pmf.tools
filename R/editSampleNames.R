@@ -2,7 +2,6 @@
 #' 
 #' @details convenience function editing of sample names within R to correct errors or add additional factors   
 #' @param ramclustObj ramclustR object to edit
-#' @param which.data character; which dataset (SpecAbund or SpecAbundAve) to perform PCA on.  
 #' @param delim  character; "-" by default - the delimiter for parsing sample names to factors  
 #' @param cmpdlabel = "cmpd";  label the data with the annotation. can also be set to 'ann' for column names assigned as annotatins.
 #' @return returns a list of length 3: $design is the experimental sample factors after parsing by the delim, $data is the dataset, $full.data is merged $des and $data data.frames.

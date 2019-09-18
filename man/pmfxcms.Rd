@@ -39,9 +39,13 @@ pmfxcms(ExpDes = NULL, MStag = "01.cdf", idMSMStag = "02.cdf",
 
 \item{outPCA}{Logical (TRUE). Should we remove injections based on binned mass distribution after peak detection? Uses outlier detection on PC1 scores.}
 
+\item{pcut}{Numeric (0.05).  p.value cutoff used to detect outliers.  p values optionall corrected by p.adj (benhamini hochberg by default)}
+
 \item{p.adj}{character ("BH"). what pvalue false discovery rate correction to use on outlier detection steps.  see ?p.adjust for options.}
 
 \item{snthresh}{numeric (10). signal to noise threshold used for feature detection (centWave or matchedFilter)}
+
+\item{mzdiffquad}{(0.5) mz bin size used for matchedFilter algorithm.}
 
 \item{bwpre}{numeric (3).  bw parameter used in the feature grouping (correspondence) step BEFORE retention time adjustement}
 
@@ -62,10 +66,6 @@ pmfxcms(ExpDes = NULL, MStag = "01.cdf", idMSMStag = "02.cdf",
 \item{regroup}{logical (FALSE).  If true, try to load saved xcms object from 'datasets/' directory in working directory, skipping peak detection.}
 
 \item{rem.files}{vector of integer values. if regroup == TRUE, optional vector of sample numbers to remove.}
-
-\item{pcut=0.05}{Numeric (0.05).  p.value cutoff used to detect outliers.  p values optionall corrected by p.adj (benhamini hochberg by default)}
-
-\item{mzdiffquad=0.5}{mz bin size used for matchedFilter algorithm.}
 }
 \value{
 returns an xcms object
