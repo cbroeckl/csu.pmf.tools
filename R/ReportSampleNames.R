@@ -15,8 +15,16 @@ reportSampleNames<-function(
   ramclustObj=RC,
   which.data="SpecAbund",
   delim="-",
-  cmpdlabel="cmpd"
+  cmpdlabel="cmpd",
+  filename = NULL
 ) {
+  
+  if(is.null(filename)) {
+    if(!dir.exists("tmp.report")) {dir.create("tmp.report")}
+    filename <-  "tmp.report/sample.names.txt"
+  }
+
+  
   
   d <- getData(ramclustObj = ramclustObj, which.data = which.data, delim = delim, cmpdlabel = cmpdlabel)
   
@@ -34,11 +42,11 @@ reportSampleNames<-function(
   }
 
   ramclustObj$sampleSummary <- out
-  sink("sampleSummary.txt")
+  sink(filename)
   cat(out)
   sink()
   cat(out)
-  cat(paste0("File written to ", getwd(), "/sampleSummary.txt", '\n'))
+  cat(paste0("File written to ", getwd(), "/", filename, '\n'))
   return(ramclustObj)
 }	
 
