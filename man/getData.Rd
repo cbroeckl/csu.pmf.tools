@@ -10,7 +10,7 @@ getData(ramclustObj = RC, which.data = "SpecAbund", delim = "-",
 \arguments{
 \item{ramclustObj}{ramclustR object to retrieve data from}
 
-\item{which.data}{character; which dataset (SpecAbund or SpecAbundAve) to perform PCA on.}
+\item{which.data}{character; which dataset (SpecAbund or SpecAbundAve) to reference}
 
 \item{delim}{character; "-" by default - the delimiter for parsing sample names to factors}
 

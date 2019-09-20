@@ -28,6 +28,11 @@ pmfpca<-function(ramclustObj=RC,
                  label.by = "ann", 
                  npc = "auto") {
   
+  require(ggplot2)
+  require(ggfortify)
+  require(PCDimension)
+  require(ClassDiscovery)
+  
   if(is.null(ramclustObj)) {
     stop("must supply ramclustR object as input")
   }
@@ -130,8 +135,8 @@ pmfpca<-function(ramclustObj=RC,
     }
   }
   dev.off()
-  
-  loadings.out <- pc$rotation[,1:npc]
+
+  loadings.out <- (pc$rotation)[,1:npc, drop = FALSE]
   write.csv(loadings.out, file = "stats/pca/loadings.values.csv")
   for(i in 1:ncol(loadings.out)) {
     tmp <-p.adjust(2*pnorm(abs(pc$rotation[,1]), lower.tail=FALSE), method="BH")

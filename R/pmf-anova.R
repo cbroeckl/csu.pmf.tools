@@ -44,7 +44,7 @@ pmfanova<-function(ramclustObj=RC,
   if(!any(grepl("stats", list.dirs()))) {
     dir.create('stats')
   }
-  if(!any(grepl("pca", list.dirs()))) {
+  if(!any(grepl("anova", list.dirs()))) {
     dir.create('stats/anova')
   }
   
