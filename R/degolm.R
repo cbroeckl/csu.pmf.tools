@@ -12,7 +12,7 @@ degolm<-function(
   ramclustObj=RC
   ) { 
   
-  load(paste0(find.package("csu.pmf.tools"), "/inst/glm.inchi.Rdata"))
+  load(paste0(find.package("csu.pmf.tools"), "/glm.inchi.Rdata"))
   
   anns<-ramclustObj$ann
   glm<-grep("VAR5", anns)
