@@ -5,7 +5,7 @@
 \title{convenient reporting of sample name and design}
 \usage{
 reportSampleNames(ramclustObj = RC, which.data = "SpecAbund",
-  delim = "-", cmpdlabel = "cmpd")
+  delim = "-", cmpdlabel = "cmpd", filename = NULL)
 }
 \arguments{
 \item{ramclustObj}{ramclustR object summarize}
