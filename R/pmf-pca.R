@@ -23,8 +23,8 @@
 pmfpca<-function(ramclustObj=RC,
                  which.data="SpecAbund",
                  scale="pareto",
-                 which.factors = c("genotype", "injury", "limb", "age"),
-                 num.factors = c("age"),
+                 which.factors = NULL,
+                 num.factors = NULL,
                  label.by = "ann", 
                  npc = "auto") {
   
@@ -57,9 +57,20 @@ pmfpca<-function(ramclustObj=RC,
   if(length(ramclustObj[[label.by]]) == dim(d[[2]])[2]) {
     colnames(d[[2]]) <- ramclustObj[[label.by]]
   }
+
+  ## scale data first. 
+  
+  if(scale == "pareto") {
+    d[[2]] <- scale(d[[2]], center = T, scale = sqrt(apply(d[[2]], 2, FUN = "sd")))
+  }
+  if(scale == "uv") {
+    d[[2]] <- scale(d[[2]], center = T, scale = T)
+  }
   
   ## autoselect number of principle components using ClassDiscovery and PCDimensions Package tools
   ## AuerGervini method, in particular.  Use median of all AuerGervini Dimention Methods
+  
+  
   if(npc == "auto") {
     force.npc = FALSE
     spca <- ClassDiscovery::SamplePCA(t(d[[2]]), center = TRUE)
@@ -74,17 +85,11 @@ pmfpca<-function(ramclustObj=RC,
     if(npc < 2)  {npc == 2; force.npc = TRUE}
   } else {
     if(!is.integer(npc)) {
-      stop("please set npc to either an iteger value or 'auto'", '\n')
+      stop("please set npc to either an integer value or 'auto'", '\n')
     }
   }
   
-  if(scale == "pareto") {
-    d[[2]] <- scale(d[[2]], center = T, scale = sqrt(apply(d[[2]], 2, FUN = "sd")))
-  }
-  if(scale == "uv") {
-    d[[2]] <- scale(d[[2]], center = T, scale = T)
-  }
-  
+
   pc <- prcomp(d[[2]])
   
   if(length(npc) <= 5) {plot.pcs <- rep(TRUE, npc)} else {plot.pcs <- rep(FALSE, npc)}
@@ -92,7 +97,8 @@ pmfpca<-function(ramclustObj=RC,
   sig.pcs <- rep(FALSE, npc)
   for(i in 1:length(which.factors)) {
     if(min(table(d[[1]][,which.factors[i]])) <2 & !is.numeric(d[[1]][,which.factors[i]])) {
-      stop(paste("Insufficient replication in factor", which.factors[i], '\n'))
+      # warning(paste(which.factors[i], "Insufficient replication in factor:", "'", which.factors[i], "'", '\n'))
+      next
     }
     for(j in 1:npc) {
       p <- as.numeric(anova(lm(pc$x[,j]~d[[1]][,which.factors[i]]))[1,"Pr(>F)"])
@@ -113,7 +119,7 @@ pmfpca<-function(ramclustObj=RC,
   
   pt.cols <- rep("gray", length(pc$sdev)); pt.cols[1:npc] <- "darkgreen"
   rel.var <- round((spca@variances)/sum((spca@variances)), digits = 3)
-  plot(1:(2*npc), rel.var[1:(2*npc)], col = pt.cols, mgp = c(3,1,0), ylim = c(0, 1.1*rel.var[1]), 
+  plot(1:(2*npc), rel.var[1:(2*npc)], col = pt.cols, mgp = c(3,1,0), ylim = c(0, 1.2*rel.var[1]), 
               ylab = "% variance explained", pch = 19,
               main = "screeplot", xlab = "PC", 
               sub = paste("green points represent PCs used, * (if present) indicates PCSs with response to factor(s)"), 
