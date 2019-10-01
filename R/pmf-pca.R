@@ -44,8 +44,18 @@ pmfpca<-function(ramclustObj=RC,
     dir.create('stats/pca')
   }
   
+  if(is.null(ramclustObj$history)) {
+    ramclustObj$history <- ""
+  }
+  
+  ramclustObj$history <- paste(
+    ramclustObj$history, '\n', '\n',
+    "Principle Component Analysis was performed in R.", 
+    paste0("The ",  which.data, " dataset was used as input with scaling set to ", scale, ".")
+  )
+  
   if(length(unique(ramclustObj$ann)) < length(ramclustObj$ann)) ramclustObj$ann <-  make.unique(ramclustObj$ann)
-
+  
   d <- getData(ramclustObj)
   
   if(!is.null(num.factors)) {
@@ -57,7 +67,7 @@ pmfpca<-function(ramclustObj=RC,
   if(length(ramclustObj[[label.by]]) == dim(d[[2]])[2]) {
     colnames(d[[2]]) <- ramclustObj[[label.by]]
   }
-
+  
   ## scale data first. 
   
   if(scale == "pareto") {
@@ -72,6 +82,7 @@ pmfpca<-function(ramclustObj=RC,
   
   
   if(npc == "auto") {
+    
     force.npc = FALSE
     spca <- ClassDiscovery::SamplePCA(t(d[[2]]), center = TRUE)
     ag.obj <- PCDimension::AuerGervini(spca)
@@ -82,14 +93,35 @@ pmfpca<-function(ramclustObj=RC,
                    cpt=agDimCPT, cpm=f)
     npc <- median(compareAgDimMethods(ag.obj, agfuns))
     orig.npc <- npc
-    if(npc < 2)  {npc == 2; force.npc = TRUE}
+    
+    ramclustObj$history <- paste(
+      ramclustObj$history, 
+      "The number of principle components was selected using the AuerGervini method from the ClassDiscovery R package.",
+      paste0("The median value of all nPC values from the 'compareAgDimMethods' function was used to set nPC to ", npc, ".")
+    )
+    if(npc < 2)  {
+      npc == 2
+      force.npc = TRUE
+      ramclustObj$history <- paste(
+        ramclustObj$history, 
+        "The nPC value was then manually set to '2' to enable two dimensional plotting. "
+      )
+      }
+    
+    
+    
   } else {
     if(!is.integer(npc)) {
       stop("please set npc to either an integer value or 'auto'", '\n')
     }
+    ramclustObj$history <- paste(
+      ramclustObj$history, 
+      paste0("The nPC value was  manually set to ", npc, ".")
+    )
+    
   }
   
-
+  
   pc <- prcomp(d[[2]])
   
   if(length(npc) <= 5) {plot.pcs <- rep(TRUE, npc)} else {plot.pcs <- rep(FALSE, npc)}
@@ -102,12 +134,21 @@ pmfpca<-function(ramclustObj=RC,
     }
     for(j in 1:npc) {
       p <- as.numeric(anova(lm(pc$x[,j]~d[[1]][,which.factors[i]]))[1,"Pr(>F)"])
+
       if(p < 0.05) {
         plot.pcs[j] <- TRUE
         sig.pcs[j] <- TRUE
       }
     }
   }
+  
+  ramclustObj$history <- paste0(
+    ramclustObj$history, 
+    " Linear model ANOVA was performed for the factor(s) [",
+    paste(which.factors, collapse = " "), 
+    "] to provide some guidance on which PCs appear responsive to factors of interest.", 
+    " These are not meant to be rigorous statistical tests but to help guide your interpretation of the data."
+  )
   
   pdf('stats/pca/plots.pdf', width = 10, height = 6)
   par(mfrow = c(1,2))
@@ -120,10 +161,10 @@ pmfpca<-function(ramclustObj=RC,
   pt.cols <- rep("gray", length(pc$sdev)); pt.cols[1:npc] <- "darkgreen"
   rel.var <- round((spca@variances)/sum((spca@variances)), digits = 3)
   plot(1:(2*npc), rel.var[1:(2*npc)], col = pt.cols, mgp = c(3,1,0), ylim = c(0, 1.2*rel.var[1]), 
-              ylab = "% variance explained", pch = 19,
-              main = "screeplot", xlab = "PC", 
-              sub = paste("green points represent PCs used, * (if present) indicates PCSs with response to factor(s)"), 
-              cex.lab = 1, cex.sub = 0.5, type = "b")
+       ylab = "% variance explained", pch = 19,
+       main = "screeplot", xlab = "PC", 
+       sub = paste("green points represent PCs used, * (if present) indicates PCSs with response to factor(s)"), 
+       cex.lab = 1, cex.sub = 0.5, type = "b")
   if(any(sig.pcs)) {
     points((1:npc)[which(sig.pcs)], (rel.var + (rel.var[1]/20))[which(sig.pcs)], 
            pch = "*", cex = 1)
@@ -135,19 +176,27 @@ pmfpca<-function(ramclustObj=RC,
   for(i in 1:ncol(xy)) {
     for(j in 1:length(which.factors)) {
       print(autoplot(pc, x = xy[1,i], y = xy[2,i], 
-                              data = cbind(d[[1]], d[[2]]), 
-                              colour = which.factors[j], frame = !any(which.factors[j] %in% num.factors), 
-                              width = 5) + theme_bw()) 
+                     data = cbind(d[[1]], d[[2]]), 
+                     colour = which.factors[j], frame = !any(which.factors[j] %in% num.factors), 
+                     width = 5) + theme_bw()) 
     }
   }
   dev.off()
-
+  
   loadings.out <- (pc$rotation)[,1:npc, drop = FALSE]
   write.csv(loadings.out, file = "stats/pca/loadings.values.csv")
   for(i in 1:ncol(loadings.out)) {
     tmp <-p.adjust(2*pnorm(abs(pc$rotation[,1]), lower.tail=FALSE), method="BH")
     loadings.out[which(tmp > 0.05),i] <- "NA"
   }
+  
+  ramclustObj$history <- paste(
+    ramclustObj$history, 
+    "Outlier tests are performed on PC loadings to serve as a guide in interpreting which compounds contribute most to the observed separation.", 
+    "This is performed using the R pnorm function. Returned p-values are false discovery rate corrected.", 
+    "These p-values are not used to conclude that a compound is significantly changing, but rather to indicate that a compound disproportionately contributes to the multivariate sample separation observed for that PC."
+    )
+  
   write.csv(pc$rotation, file = "stats/pca/loadings.values.allPCs.csv")
   write.csv(loadings.out, file = "stats/pca/loadings.outliers.csv")
   write.csv(pc$x[,1:npc], file = "stats/pca/scores.csv")
