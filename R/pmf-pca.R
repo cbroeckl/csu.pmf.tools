@@ -91,7 +91,7 @@ pmfpca<-function(ramclustObj=RC,
                    km=agDimKmeans, km3=agDimKmeans3,
                    tt=agDimTtest, tt2=agDimTtest2,
                    cpt=agDimCPT, cpm=f)
-    npc <- median(compareAgDimMethods(ag.obj, agfuns))
+    npc <- ceiling(median(compareAgDimMethods(ag.obj, agfuns)))
     orig.npc <- npc
     
     ramclustObj$history <- paste(
