@@ -5,8 +5,8 @@
 \title{pmfpca}
 \usage{
 pmfpca(ramclustObj = RC, which.data = "SpecAbund", scale = "pareto",
-  which.factors = c("genotype", "injury", "limb", "age"),
-  num.factors = c("age"), label.by = "ann", npc = "auto")
+  which.factors = NULL, num.factors = NULL, label.by = "ann",
+  npc = "auto")
 }
 \arguments{
 \item{ramclustObj}{ramclustR object to perform PCA on}
