@@ -70,7 +70,7 @@ pmfanova<-function(ramclustObj=RC,
       ramclustObj$history, '\n', '\n',
       "Analysis of variance was performed in R.", 
       paste0("The ",  which.data, " dataset was used as input."), 
-      if(!is.null(num.factors)) {paste0("The factor(s) [", paste(num.factors, collapse = " "), "] are treated as numeric." )}
+      if(!is.null(which.quan)) {paste0("The factor(s) [", paste(which.quan, collapse = " "), "] are treated as numeric." )}
     )
   }
   

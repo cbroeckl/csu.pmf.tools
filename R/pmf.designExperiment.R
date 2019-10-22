@@ -8,8 +8,6 @@
 
 pmf.defineExperiment<-function()
 {
-  
-  
   paramsets<-list(
     HilicPos=data.frame(c(chrominst="Waters UPLC: Sequant ZIC-pHILIC",
                           msinst="Waters Xevo G2 TOF",
