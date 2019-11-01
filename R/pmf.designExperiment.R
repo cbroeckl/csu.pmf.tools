@@ -5,8 +5,10 @@
 #' @return returns an R object suitable for use as an ExpDes input to ramclustR() function.  
 #' @concept ramclustR
 #' @concept RAMClustR
+#' @export
+#' 
 
-pmf.defineExperiment<-function()
+pmfDefineExperiment<-function()
 {
   paramsets<-list(
     HilicPos=data.frame(c(chrominst="Waters UPLC: Sequant ZIC-pHILIC",

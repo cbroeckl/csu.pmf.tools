@@ -9,12 +9,14 @@ make.zip.files(directories = c("datasets", "spectra", "QC", "stats"),
   ".cmbx", ".PRO", ".raw"))
 }
 \arguments{
+\item{raw.file.extensions}{- character vector. which file extensions represent raw files.  Default: c(".cdf", ".mzML", ".mzXML", ".PRO", ".cmbx", ".raw").}
+
 \item{directories:}{character vector.  Which directories should be zipped. Only files in these directories will be chosen.}
 
 \item{do.raw:}{logical - should a zip file of raw data files be generated?}
 }
 \value{
-NA
+Nothing at all
 }
 \description{
 zip selected directories and move to 'report' directory.
