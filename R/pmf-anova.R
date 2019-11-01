@@ -197,7 +197,8 @@ pmfanova<-function(ramclustObj=RC,
                     })
       tmp <- summary(test$contrasts)
       pnames <- paste(strsplit(posthoc[j], "|", fixed = TRUE)[[1]], collapse = " within ")
-      pnames <- paste0(pnames, ": ", tmp$contrast, tmp[[2]])
+      pnames <- paste0(pnames, ": ", tmp$contrast) 
+      if(!is.data.frame(tmp)) pnames <- paste(pnames, tmp[[2]])
       pdata <- data.frame(lapply(1:length(phres), FUN = function(x) {summary(phres[[x]]$contrasts)$p.value }))
       dimnames(pdata)[[1]] <- pnames
       dimnames(pdata)[[2]] <- dimnames(mp)[[2]]
@@ -230,7 +231,7 @@ pmfanova<-function(ramclustObj=RC,
       pdf(file=paste0(out.dir, "/effectsplots.pdf"), width=16, height=8)
       
       for(i in 1:length(res)) {
-        cat(i, '\n')
+        # cat(i, '\n')
         plot(allEffects(res[[i]]), main=ramclustObj$ann[i], ylab="effect size (signal intensity)")
       }
       dev.off()
@@ -242,12 +243,12 @@ pmfanova<-function(ramclustObj=RC,
       "Effects plots are generated using the allEffects function."
     )
   }
-  out.dir
+  # out.dir
   ramclustObj[[paste0("anova.pval_", anova.name)]] <- mp
   
   if(!is.null(ramclustObj$clrt)){
     
-    pldata <- t(rbind("rt" = ramclustObj$clrt, mp))
+    pldata <- t(rbind("rt" = round(ramclustObj$clrt, digits = 1), mp))
     for(j in ncol(pldata):2) {
       if(all(is.na(pldata[,j]))) {
         pldata <- pldata[,-j]

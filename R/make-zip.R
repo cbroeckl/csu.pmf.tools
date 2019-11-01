@@ -47,7 +47,7 @@ make.zip.files <- function(
       r <- r[-1]
       if(length(r) > 0) {f <- f[-r]}
       rm(r)
-      cat(i, ": length", length(f), '\n')
+      # cat(i, ": length", length(f), '\n')
       if(i >= length(f)) {break}
     }
     
