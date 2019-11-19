@@ -161,7 +161,7 @@ pmfpca<-function(ramclustObj=RC,
   pt.cols <- rep("gray", length(pc$sdev)); pt.cols[1:npc] <- "darkgreen"
   rel.var <- round((spca@variances)/sum((spca@variances)), digits = 3)
   plot(1:(2*npc), rel.var[1:(2*npc)], col = pt.cols, mgp = c(3,1,0), ylim = c(0, 1.2*rel.var[1]), 
-       ylab = "% variance explained", pch = 19,
+       ylab = "proportion variance explained", pch = 19,
        main = "screeplot", xlab = "PC", 
        sub = paste("green points represent PCs used, * (if present) indicates PCSs with response to factor(s)"), 
        cex.lab = 1, cex.sub = 0.5, type = "b")

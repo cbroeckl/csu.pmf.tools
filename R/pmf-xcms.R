@@ -246,7 +246,7 @@ pmfxcms<-function(
     }
   } else {
     if(grepl("Xevo", ExpDes$instrument["msinst",1]) & !is.null(ExpDes$instrument["CE2",1]) & !grepl("DsDA", ExpDes[[1]]["platform",1])) {							########for LC
-      xset<-xcmsSet(files, nSlaves=cores, method = "centWave",
+      xset<-xcmsSet(files, BPPARAM = SnowParam(workers = cores), method = "centWave",
                     ppm=ppmerr, peakwidth=c(minpw:maxpw), snthresh=snthresh, mzCenterFun="wMean", 
                     integrate=2, mzdiff=(300*ppmerr/1000000*4), verbose.columns=TRUE, fitgauss=TRUE)
       save(xset, file="datasets/xcmsPeaks.Rdata")
@@ -254,26 +254,26 @@ pmfxcms<-function(
     }
     
     if(grepl("GC", ExpDes[[1]]["platform",1]) | grepl("GC", ExpDes[[2]]["chrominst",1]) ) {															#######for GC
-      xset <- xcmsSet(dataset, nSlaves=cores, method = "matchedFilter", fwhm = fwhm,
+      xset <- xcmsSet(dataset, BPPARAM = SnowParam(workers = cores), method = "matchedFilter", fwhm = fwhm,
                       max = 500, snthresh = snthresh, step = mzdiffquad, steps = 2, mzdiff = mzdiffquad, 
                       index = FALSE, sleep = 0)
       mzwid<-mzdiffquad
     }
     if(grepl("MICRO", ExpDes[[1]]["platform",1])) {														#######for QTOFMicro data
       mzdiffquad<-0.07
-      xset <- xcmsSet(dataset, nSlaves=cores, method = "matchedFilter", fwhm = fwhm, 
+      xset <- xcmsSet(dataset, BPPARAM = SnowParam(workers = cores), method = "matchedFilter", fwhm = fwhm, 
                       max = 500, snthresh = snthresh, step = 0.1, steps = 2, mzdiff = mzdiffquad, 
                       index = FALSE, sleep = 0)
       mzwid<-mzdiffquad
     }
     if(grepl("TOF", ExpDes[[2]]["msinst",1]) & !grepl("MICRO", ExpDes[[1]]["platform",1]) & !grepl("Xevo", ExpDes$instrument["msinst",1])  ) {														#######for QTOFMicro data
-      xset<-xcmsSet(files, nSlaves=cores, method = "centWave", 
+      xset<-xcmsSet(files, BPPARAM = SnowParam(workers = cores), method = "centWave", 
                     ppm=ppmerr, peakwidth=c(minpw:maxpw), snthresh=snthresh, mzCenterFun="wMean", integrate=2, mzdiff=(300*ppmerr/1000000*4), verbose.columns=TRUE, fitgauss=TRUE)
       save(xset, file="datasets/xcmsPeaks.Rdata")
       mzwid<-(300*ppmerr/1000000*4)
     }
     if(grepl("TOF", ExpDes[[2]]["msinst",1]) & grepl("DsDA", ExpDes[[1]]["platform",1])  ) {														#######for QTOFMicro data
-      xset<-xcmsSet(files, nSlaves=cores, method = "centWave", 
+      xset<-xcmsSet(files, BPPARAM = SnowParam(workers = cores), method = "centWave", 
                     ppm=ppmerr, peakwidth=c(minpw:maxpw), snthresh=snthresh, mzCenterFun="wMean", integrate=2, mzdiff=(300*ppmerr/1000000*4), verbose.columns=TRUE, fitgauss=TRUE)
       save(xset, file="datasets/xcmsPeaks.Rdata")
       mzwid<-(300*ppmerr/1000000*4)
@@ -323,7 +323,7 @@ pmfxcms<-function(
     if(!is.null(rtcor)) xset <- group(xset, bw=bwpost, minfrac=minfrac, max= 100, mzwid=mzwid)
     # save(xset, file="datasets/xcmsGroup2.Rdata")
   }
-  xset <- fillPeaks.chrom(xset, nSlaves = cores)
+  xset <- fillPeaks.chrom(xset, BPPARAM = SnowParam(workers = cores))
   
   if(grepl("Xevo", ExpDes$instrument["msinst",1]) & !is.null(ExpDes$instrument["CE2",1]))  {         		########for LC
     kept<- gsub(MStag, "", basename(xset@filepaths), ignore.case=TRUE)

@@ -35,20 +35,37 @@ pmfanova<-function(ramclustObj=RC,
                    p.adj="BH",
                    which.quan=NULL
 ) {
-  library(effects)
-  library(lme4)
-  library(lmerTest)
-  library(lsmeans)
-  library(pbkrtest)
+  require(effects)
+  require(lme4)
+  require(lmerTest)
+  require(lsmeans)
+  require(pbkrtest)
   
-  if(!any(grepl("stats", list.dirs()))) {
+  if(!dir.exists("stats")) {
     dir.create('stats')
   }
-  if(!any(grepl("anova", list.dirs()))) {
+  if(!dir.exists("stats/anova")) {
     dir.create('stats/anova')
   }
   
   d <- csu.pmf.tools::getData(ramclustObj, which.data)
+  
+  ## remove samples that have NA values in any factor from anova.call
+  keep <- rep(TRUE, nrow(d[[1]]))
+  
+  for(i in 1:ncol(d[[1]])) {
+    if(!grepl(names(d[[1]])[i], anova.call)) next
+    na.vals <- which(is.na(d[[1]][,i]))
+    na.vals <- c(na.vals, which(d[[1]][,i] == "NA"))
+    if(length(na.vals)==0) next
+    keep[na.vals] <- FALSE
+  }
+  if(any(!keep)) {
+    cat("excluding", length(which(!keep)), "samples with 'NA' values from ANOVA.", '\n')
+    d[[1]] <- d[[1]][keep,]
+    d[[2]] <- d[[2]][keep,]
+    d[[3]] <- d[[3]][keep,]
+  }
   
   if(!is.null(which.quan)) {
     for(i in 1:length(which.quan)) {
@@ -128,9 +145,7 @@ pmfanova<-function(ramclustObj=RC,
   dat<-d[[3]]
   cmpd <- colnames(d[[2]])
   
-  if(attributes(try(
-    supressWarnings(lme4::lmer(as.formula(paste(cmpd[1], "~", anova.call)), data = dat)),
-    silent=TRUE))$class[1] == "lmerMod") {use<-2} else {use<-1}
+  if(grepl("1|", anova.call, fixed = TRUE)) {use<-2} else {use<-1}
   
   
   if(use == 1) {
@@ -159,7 +174,8 @@ pmfanova<-function(ramclustObj=RC,
       lmerTest::lmer(as.formula(paste(cmpd[x], "~", anova.call)), data = dat)
     })
     pnames<-dimnames((anova(test, ddf="Kenward-Roger"))[1])[[1]]
-    mp<-sapply(1:length(res), FUN=function(x) {anova(res[[x]], ddf="Kenward-Roger")$"Pr(>F)"})
+    mp<-data.frame(lapply(1:length(res), FUN=function(x) {anova(res[[x]], ddf="Kenward-Roger")$"Pr(>F)"}))
+    if(length(pnames) == dim(mp)[[2]]) {mp <- as.data.frame(t(mp))}
     dimnames(mp)[[1]] <- pnames
     dimnames(mp)[[2]] <- cmpd
     ramclustObj$history <- paste(
