@@ -2,7 +2,7 @@
 #'
 #' perform principle compponent analysis on ramclustR object dataset, export plots
 #' @details This function uses the native prcomp() function in R to perform PCA analysis. 
-#' @details Automatic selection of the number of principle components using the AuerGervini method is enabled by the PCDimension and ClassDiscovery packages
+#' @details Automatic selection of the number of principle components using the AuerGervini method is enabled by the PCDimension and ClassDiscovery packages.
 #' @details R PCA AuerGervini objects are attached to the ramclustR object, and summary plots and csv files are written to the stats/pca directory in the working directory
 #' @details a methods narrative is also appended to the $history slot
 #' 
