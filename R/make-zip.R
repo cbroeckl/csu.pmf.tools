@@ -24,14 +24,14 @@ make.zip.files <- function(
   cat('zipping data can take quite some time - please be patient', '\n')
   f <- vector(mode = "character", length = 0)
   for(i in 1:length(directories)) {
-    f <- list.files(path = directories[i], recursive = TRUE, full.names = TRUE)
+    f <- c(f, list.files(path = directories[i], recursive = TRUE, full.names = TRUE))
   }
   
   if(file.exists("seq.csv")) {
     f <- c(f, "seq.csv")
   }
-  
-  zipr("report/supplementalFiles.zip", files = f)
+  zip("report/supplementalFiles_no_r.zip", files = f, recurse = TRUE, include_directories = TRUE)
+  # zipr("report/supplementalFiles.zip", files = f, recurse = TRUE, include_directories = TRUE)
   rm(f)
   
   if(do.raw) {
