@@ -41,14 +41,14 @@
 #' @export 
 pmfxcms<-function(
   ExpDes = NULL,
-  MStag="01.cdf",
-  idMSMStag="02.cdf",
-  filetype="cdf",
+  MStag="_01.mzML",
+  idMSMStag="_02.mzML",
+  filetype="mzML",
   factorfile="seq.csv",
   cores=4,
   minpw=3,
   maxpw=30,
-  filtPeaks=TRUE,
+  filtPeaks=FALSE,
   ppmerr=35,
   minTIC=10,
   outTIC=TRUE,
@@ -189,7 +189,8 @@ pmfxcms<-function(
   dir.create("datasets")
   dataset<-list.files(getwd(), pattern=filetype, recursive = FALSE, ignore.case=TRUE)
   if(grepl("Waters", ExpDes[[2]]["msinst",1]) & (ExpDes$instrument[which(row.names(ExpDes$instrument) == "MSlevs"),1]==2)){
-    dataset<-dataset[union(grep(MStag, dataset, ignore.case=TRUE), grep(idMSMStag, dataset, ignore.case=TRUE) )]
+    dataset<-dataset[union(grep(MStag, dataset, ignore.case=TRUE), 
+                           grep(idMSMStag, dataset, ignore.case=TRUE) )]
   }
   if(grepl("Waters", ExpDes[[2]]["msinst",1]) & (ExpDes$instrument[which(row.names(ExpDes$instrument) == "MSlevs"),1]==1) & 
      !grepl("DsDA", ExpDes[[1]]["platform",1])){
@@ -209,7 +210,8 @@ pmfxcms<-function(
   if((ExpDes$instrument["MSlevs",1]==2)) {
     seq<-read.csv(file=factorfile, header=TRUE, stringsAsFactors=FALSE)
     seq<-seq[order(seq[,1]),]
-    files<-c(paste(seq[,1], "01.", filetype, sep=""), paste(seq[,1], "02.", filetype, sep=""))
+    # files<-c(paste(seq[,1], "01.", filetype, sep=""), paste(seq[,1], "02.", filetype, sep=""))
+    files<-c(paste(seq[,1], MStag, sep=""), paste(seq[,1], idMSMStag, sep=""))
     SampID<-as.factor(c(paste(seq[,2], ExpDes$design["delim",1], "MS", sep=""), paste(seq[,2], ExpDes$design["delim",1], "idMSMS", sep="")))
   }
   if(grepl("Waters", ExpDes[[2]]["msinst",1]) & (ExpDes$instrument["MSlevs",1]==1)) {
@@ -246,9 +248,28 @@ pmfxcms<-function(
     }
   } else {
     if(grepl("Xevo", ExpDes$instrument["msinst",1]) & !is.null(ExpDes$instrument["CE2",1]) & !grepl("DsDA", ExpDes[[1]]["platform",1])) {							########for LC
-      xset<-xcmsSet(files, BPPARAM = SnowParam(workers = cores), method = "centWave",
-                    ppm=ppmerr, peakwidth=c(minpw:maxpw), snthresh=snthresh, mzCenterFun="wMean", 
-                    integrate=2, mzdiff=(300*ppmerr/1000000*4), verbose.columns=TRUE, fitgauss=TRUE)
+      xset<-xcmsSet(files[1:4], 
+                    BPPARAM = SnowParam(workers = cores), 
+                    method = "centWave",
+                    ppm=ppmerr, peakwidth=c(minpw:maxpw), 
+                    snthresh=snthresh, mzCenterFun="wMean", 
+                    integrate=2, 
+                    mzdiff=(300*ppmerr/1000000*4), 
+                    verbose.columns=TRUE, 
+                    fitgauss=TRUE,
+                    mslevel = c(1))
+      xset_ms2<-xcmsSet(files[5:8], 
+                    BPPARAM = SnowParam(workers = cores), 
+                    method = "centWave",
+                    ppm=ppmerr, peakwidth=c(minpw:maxpw), 
+                    snthresh=snthresh, mzCenterFun="wMean", 
+                    integrate=2, 
+                    mzdiff=(300*ppmerr/1000000*4), 
+                    verbose.columns=TRUE, 
+                    fitgauss=TRUE,
+                    mslevel = c(2))
+      xset_all <- c(xset, xset_ms2)
+      xset <- xset_all
       save(xset, file="datasets/xcmsPeaks.Rdata")
       mzwid<-(300*ppmerr/1000000*4)
     }
@@ -303,6 +324,8 @@ pmfxcms<-function(
   if(outPCA)  xset<-outlPCA(xcmsObj=xset)
   xset <- group(xset, bw=bwpre, minfrac=minfrac, max = 50, mzwid=mzwid)
   # save(xset, file="datasets/xcmsGroup1.Rdata")
+  
+  pdf("rt.cor.plots.pdf", width = 10, height = 7)
   if(!is.null(rtcor)) {
     if(rtcor=="loess") { 
       xset <- retcor(xset,  method="loess", family = "gaussian", 
@@ -310,7 +333,8 @@ pmfxcms<-function(
                      missing=round(length(dataset)*0.9, digits=0)) 
     }
     if(rtcor=="linear") { 
-      xset <- retcor(xset,  method="linear", family = "gaussian", plottype = "mdevden", span=bwpre, missing=round(length(dataset)*0.9, digits=0)) 
+      xset <- retcor(xset,  method="linear", family = "gaussian", 
+                     plottype = "mdevden", span=bwpre, missing=round(length(dataset)*0.9, digits=0)) 
     }
     if(rtcor=="obiwarp") {
       xset<-retcor.obiwarp(xset, profStep=2*mzwid, response=10)
@@ -323,6 +347,21 @@ pmfxcms<-function(
     if(!is.null(rtcor)) xset <- group(xset, bw=bwpost, minfrac=minfrac, max= 100, mzwid=mzwid)
     # save(xset, file="datasets/xcmsGroup2.Rdata")
   }
+  dev.off()
+  
+  ## perform tryCatch error capture to make this robust
+  # xset = tryCatch({
+  #   xset <- fillPeaks.chrom(xset, BPPARAM = SnowParam(workers = cores))
+  # }, warning = function(w) {
+  #   warning-handler-code
+  # }, error = function(e) {
+  #   return(xset)
+  #   warning("fillPeaks failed - imputation is an option...", '\n')
+  # }, finally = {
+  #   xset
+  # }
+  # )
+  
   xset <- fillPeaks.chrom(xset, BPPARAM = SnowParam(workers = cores))
   
   if(grepl("Xevo", ExpDes$instrument["msinst",1]) & !is.null(ExpDes$instrument["CE2",1]))  {         		########for LC
