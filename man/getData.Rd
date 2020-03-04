@@ -4,8 +4,12 @@
 \alias{getData}
 \title{getData}
 \usage{
-getData(ramclustObj = RC, which.data = "SpecAbund", delim = "-",
-  cmpdlabel = "cmpd")
+getData(
+  ramclustObj = RC,
+  which.data = "SpecAbund",
+  delim = "-",
+  cmpdlabel = "cmpd"
+)
 }
 \arguments{
 \item{ramclustObj}{ramclustR object to retrieve data from}

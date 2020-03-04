@@ -4,10 +4,20 @@
 \alias{pmfanova}
 \title{pmfanova}
 \usage{
-pmfanova(ramclustObj = RC, anova.name = NULL,
-  which.data = "SpecAbund", subset = c(""), anova.call = NULL,
-  posthoc = NULL, effectsplots = TRUE, delim = "-", plots = TRUE,
-  pcut = 0.05, p.adj = "BH", which.quan = NULL)
+pmfanova(
+  ramclustObj = RC,
+  anova.name = NULL,
+  which.data = "SpecAbund",
+  subset = c(""),
+  anova.call = NULL,
+  posthoc = NULL,
+  effectsplots = TRUE,
+  delim = "-",
+  plots = TRUE,
+  pcut = 0.05,
+  p.adj = "BH",
+  which.quan = NULL
+)
 }
 \arguments{
 \item{ramclustObj}{ramclustR object to perform ANOVA on}
