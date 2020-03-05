@@ -4,9 +4,15 @@
 \alias{startProject}
 \title{startProject}
 \usage{
-startProject(prep.batch.size = 48, run.batch.size = 96, QC = 6,
-  randomize = TRUE, stack = FALSE, extraction.blanks = 3,
-  solvent.blanks = 3)
+startProject(
+  prep.batch.size = 48,
+  run.batch.size = 96,
+  QC = 6,
+  randomize = TRUE,
+  stack = FALSE,
+  extraction.blanks = 3,
+  solvent.blanks = 3
+)
 }
 \arguments{
 \item{prep.batch.size}{integer - what is the sample preparation batch size?  default = 48.}
