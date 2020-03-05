@@ -130,7 +130,7 @@ pmfxcms.2<-function(
   mslevs <- table(h$msLevel)
   ms3 <- mslevs['3']; if(is.na(ms3)) {ms3 <- 0}
   ms2 <- mslevs['2']; if(is.na(ms2)) {ms2 <- 0}
-  ms1 <- mslevs['1']; if(is.na(ms1)) {ms1 <- 0}  ## added if.is na to fix issue
+  ms1 <- mslevs['1']; if(is.na(ms1)) {ms1 <- 1}  ## added if.is na to fix issue
   
   is.ms2 <- which(h$msLevel == 2)
   is.ms1 <- which(h$msLevel == 1)
