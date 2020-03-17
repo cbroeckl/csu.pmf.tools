@@ -5,12 +5,13 @@
 #' @param run.batch.size integer - what is the analytical batch size? default = 96.
 #' @param QC  integer - every 'QC' injections will be a QC sample.  Default = 6  
 #' @param stack should the injection sample list be set up for stacked injections (TOF platforms only, currenly)
-#' @param extraction.blanks integer - currently not used. (how many extraction blanks per prep batch?)
-#' @param solvent.blanks  integer - currently not used.  (how many solvent blanks per run batch? )
-#' @return returns a list of length 3: $design is the experimental sample factors after parsing by the delim, $data is the dataset, $full.data is merged $des and $data data.frames.
-#' @concept RAMClustR
+#' @param prep.blanks integer - how many extraction blanks per prep batch?
+#' @param solvent.blanks  integer - how many solvent blanks per run batch?.
+#' @param destination.dir valid path to directory target output directory, by default: "R:/RSTOR-PMF/Projects/"
+#' @return returns nothing, files written to directory selected by user.
 #' @author Corey Broeckling
-
+#' @examples 
+#' startProject<-function (prep.batch.size = 48,run.batch.size=96, QC=6, randomize=TRUE, stack = FALSE, prep.blanks = 3, solvent.blanks = 3)
 #' @export 
 
 
@@ -20,8 +21,9 @@ startProject<-function (
   QC=6,
   randomize=TRUE,
   stack = FALSE,
-  extraction.blanks = 3,
-  solvent.blanks = 3
+  prep.blanks = 3,
+  solvent.blanks = 3,
+  destination.dir = "R:/RSTOR-PMF/Projects/"
 ) {
   
   ## NEED TO ADD BATCH ORDER RANDOMIZATION
@@ -80,6 +82,7 @@ startProject<-function (
   
   projdir<-paste0(destination.dir, d["Service id:",], "/")
   dir.create(projdir)
+  setwd(projdir)
   
   write.csv(d, file = paste0(projdir, "ilab_overview.csv"), row.names = TRUE)
   
@@ -88,16 +91,7 @@ startProject<-function (
   cat("Choose Sample Submission Form", '\n', '\n')
   submissionform <- choose.files(caption = "please navigate to and select the sample submission excel file.")
   
-  # returns string w/o leading whitespace
-  trim.leading <- function (x)  sub("^\\s+", "", x)
-  
-  # returns string w/o trailing whitespace
-  trim.trailing <- function (x) sub("\\s+$", "", x)
-  
-  # returns string w/o leading or trailing whitespace
-  trim <- function (x) gsub("^\\s+|\\s+$", "", x)
-  
-  
+
   select.platforms <- function(){
     platforms<-c( 
       "GCMS_EI",      #1
@@ -472,26 +466,16 @@ startProject<-function (
                        deriv="Methoxyamine+MSTFA"))
   )
   
-  
+  # set up basic, return later to add factor names
   ExpVars<-c(Experiment=d["Service id:",1],
-             PI=d["Lab Name:",1],
+             PI=unlist(strsplit(d["Lab PI(s):",1], ":"))[1],
              User="",
              Species="",
              Sample="",
              platform="",
-             delim="-",
-             fact1name="",
-             fact2name="",
-             fact3name="",
-             fact4name="",
-             fact5name="",
-             fact6name="",
-             fact7name="",
-             fact8name="",
-             fact9name="",
-             fact10name=""
+             delim="-"
   )
-  
+  #  c(paste0("fact", 1:100, "name"))
   VarDesc<-c("experiment name, no spaces",
              "Name of Principle Investigator",
              "Name of User (person submitting samples)",
@@ -523,7 +507,9 @@ startProject<-function (
   
   answer <- "t"
   while(answer == "t") {
-    smp<-read.xlsx(submissionform, sheetName = "SampleList", startRow=4, header=TRUE, stringsAsFactors=FALSE)
+    smp<-read.xlsx(submissionform, sheetName = "SampleList", 
+                   startRow=4, header=TRUE, check.names = FALSE, 
+                   stringsAsFactors=FALSE)
     #cat(" Reading and checking sample submission form: ", '\n', '\n')
     cat ("PLEASE CHECK TO ENSURE FACTOR NAMES ARE ALL CORRECT: ", "\n", '\n')
     
@@ -539,7 +525,8 @@ startProject<-function (
       cat("  levels:", unique(smp[,i]), '\n', '\n')
     }
     
-    cat ("TYPE [enter] IF CORRECT AND 't' to try again", '\n', sep="")
+    cat ("TYPE [enter] IF CORRECT", '\n',
+         " or if incorrect, edit and save excel file and enter 't' to try again", '\n', sep="")
     answer <- readline()
     
     if(answer == 't') {
@@ -553,28 +540,121 @@ startProject<-function (
   }
   
   ## remove any leading or trailing spaces, and ensure interal spaces and dashes are replaced with underscores
+  
+  ## trim all whitespace
   for(i in 1:ncol(smp)) {
-    smp[,i] <- gsub("-", "_", smp[,i])
-    smp[,i] <- gsub(" ", "_", smp[,i])
-    smp[,i] <- trim(smp[,i])
+    smp[,i] <- trimws(smp[,i])
   }
   
+  ## replace empty string cells with NA values
+  smp[which(smp == "", arr.ind = TRUE)] <- NA
+  
+  ## remove any rows and/or columns with nothing but empty cells
+  for(i in nrow(smp):1) {
+    all.nas <- all(is.na(smp[i,]))
+    if(all.nas) {
+      smp <- smp[-i,]
+    }
+  }
+  for(i in ncol(smp):1) {
+    all.nas <- all(is.na(smp[,i]))
+    if(all.nas) {
+      smp <- smp[,-i]
+    }
+  }
+  
+  for(i in 1:ncol(smp)) {
+    smp[,i] <- trimws(smp[,i])
+    smp[,i] <- gsub("-", "_", smp[,i])
+    smp[,i] <- gsub(" ", "_", smp[,i])
+  }
+  
+  names(smp) <- trimws(names(smp))
   names(smp) <- gsub("-", "_", names(smp))
   names(smp) <- gsub(" ", "_", names(smp))
-  names(smp) <- trim(names(smp))
   
-  ## assign random prep order, and batch blank column
+  
+  ## replace NA values with "_"
+  smp[which(is.na(smp), arr.ind = TRUE)] <- "_"
+  
+  ## assign random prep order, and empty batch column
   smp <- data.frame(
     "pmf.sn" = 1:nrow(smp),
     "prep_order" = sample(1:nrow(smp), replace = FALSE),
     "prep_batch" = rep(NA, nrow(smp)),
+    "run_order" = rep(NA, nrow(smp)),
+    "run_batch" = rep(NA, nrow(smp)),
     smp, stringsAsFactors = FALSE
-    )
+  )
   
-  ## reorder and write out csv file. 
+  # create factor labels and names based on smp input
+  flabs <- c(paste0("fact", 1:ncol(smp), "name"))
+  fnames <- names(smp)
+  names(fnames) <- flabs
+  
+  ## add fnames to ExpVars
+  ExpVars <- c(ExpVars, fnames)
+  
+  ## adjust prep.batch.size and run.batch.size for blanks
+  prep.batch.size <- prep.batch.size - prep.blanks
+  run.batch.size <- run.batch.size - solvent.blanks
+  
+  ## reorder 
   smp <- smp[order(smp$prep_order),]
+  
+  ## assign prep batch and insert prep blank lines
   smp[,"prep_batch"] <- 1 + floor((smp$prep_order-1)/prep.batch.size)
+  pbline <- smp[1,]
+  pbline[1,1:ncol(pbline)] <- "prep.blank"
+  nb <- max(smp[,"prep_batch"])
+  for(i in nb:1) {
+    b <- which(smp[,"prep_batch"] == i)
+    if((length(b)/prep.blanks) > 3) {
+      ins.rows <- round(quantile(b, seq(0, 1, 1/(prep.blanks))))
+      ins.rows <- sapply(1:(length(ins.rows)-1), 
+                         FUN = function(x) {round(mean(ins.rows[x:(x+1)]))})
+      for(j in length(ins.rows):1) {
+        pbline$prep_batch <- i
+        smp <- rbind(
+          smp[1:(ins.rows[j]-1),],
+          pbline,
+          smp[ins.rows[j]:nrow(smp),]
+        )
+      }
+    } else {
+      ins.rows <- round(mean(b))
+      for(j in length(ins.rows):1) {
+        pbline$prep_batch <- i
+        smp <- rbind(
+          smp[1:(ins.rows[j]-1),],
+          pbline,
+          smp[ins.rows[j]:nrow(smp),]
+        )
+      }
+    }
+    
+  }
+  
+  ## replace prep.blank with vial numbers for prep
+  tmp <- which(smp$pmf.sn == "prep.blank")
+  smp$pmf.sn[tmp] <- 0
+  smp$pmf.sn <- as.integer(as.numeric(smp$pmf.sn))
+  smp$pmf.sn[tmp] <- (max(smp$pmf.sn)+1):(max(smp$pmf.sn)+length(tmp))
+  
+  ## update prep order
+  ##########################
+  tmp <- which(smp$prep_order == "prep.blank")
+  smp$prep_order[tmp] <- 0
+  smp$prep_order <- as.integer(as.numeric(smp$prep_order))
+  for(i in tmp) {
+    prev <- smp$prep_order[i-1]
+    rem.length <- nrow(smp) - i
+    smp$prep_order[i:nrow(smp)] <- (prev+1):((prev+1)+rem.length)
+  }
+  
+  ## write prep instructional .csv
   write.csv(smp, file = "prep.sample.list.csv", row.names = FALSE)
+  
   
   qcline <- smp[1,]
   qcline[1,1:ncol(qcline)] <- "QC"
@@ -582,7 +662,7 @@ startProject<-function (
   ## randomize run order for samples, then
   ## add qc line as first row, + qc rows at desired spacing and last row. 
   run.order <- sample(1:nrow(smp), replace = FALSE)
-  smp <- smp[sample(1:nrow(smp), replace = FALSE),]
+  smp <- smp[run.order,]
   
   smp <- rbind(qcline, smp)
   current.row <- 1
@@ -597,50 +677,67 @@ startProject<-function (
   }
   smp <- rbind(smp, qcline)
   
-  must.qc <- sort(c(seq(from = 0, to = (3*nrow(smp)),  run.batch.size), seq(from = 1, to = (3*nrow(smp)),  run.batch.size)))
-  must.qc <- must.qc[which(must.qc > 0)]
-  
-  for(i in must.qc) {
-    if(i > nrow(smp)) break
-    if(!smp[i, "prep_order"] == "QC") {
-      smp <- rbind(smp[1:(i - 1),], qcline, smp[i:nrow(smp),])
+  ## assign run batch and insert solvent blank lines
+  smp[,"run_batch"] <- 1 + floor(((1:nrow(smp))-1)/run.batch.size)
+  rbline <- smp[1,]
+  rbline[1,1:ncol(rbline)] <- "solvent.blank"
+  nb <- max(smp[,"run_batch"])
+  for(i in nb:1) {
+    b <- which(smp[,"run_batch"] == i)
+    if((length(b)/solvent.blanks) > 3) {
+      ins.rows <- round(quantile(b, seq(0, 1, 1/(solvent.blanks))))
+      ins.rows <- sapply(1:(length(ins.rows)-1), 
+                         FUN = function(x) {round(mean(ins.rows[x:(x+1)]))})
+      for(j in length(ins.rows):1) {
+        rbline$run_batch <- i
+        smp <- rbind(
+          smp[1:(ins.rows[j]-1),],
+          rbline,
+          smp[ins.rows[j]:nrow(smp),]
+        )
+      }
+    } else {
+      ins.rows <- round(mean(b))
+      for(j in length(ins.rows):1) {
+        rbline$run_batch <- i
+        smp <- rbind(
+          smp[1:(ins.rows[j]-1),],
+          rbline,
+          smp[ins.rows[j]:nrow(smp),]
+        )
+      }
     }
+    
   }
-  batch <- vector()
-  for(i in 1:(ceiling(nrow(smp)/run.batch.size))) {
-    batch <- c(batch, rep(i, run.batch.size))
-  }
-  batch <- batch[1:nrow(smp)]
-  smp <- data.frame(smp[,1:3], "run_order" = 1:nrow(smp), "run_batch" = batch, smp[,4:ncol(smp)], stringsAsFactors = FALSE)
-  smp <- data.frame(smp, "sample.name" = sapply(1:nrow(smp), FUN = function(x) {paste(smp[x,], collapse = "-")} ), stringsAsFactors = FALSE)
-  # write.csv(smp, file = "run.sample.list.csv", row.names = FALSE)
+  
+  
+  ## reset run.batch.size to ensure that the first and last injections of the run batch are QC samples
+  run.batch.size <- run.batch.size + solvent.blanks
+  
+  ## replace solvent.blank and QC samples with vial numbers for running
+  tmp <- c(which(smp$pmf.sn == "solvent.blank"), which(smp$pmf.sn == "QC"))
+  smp$pmf.sn[tmp] <- 0
+  smp$pmf.sn <- as.integer(as.numeric(smp$pmf.sn))
+  smp$pmf.sn[tmp] <- (max(smp$pmf.sn)+1):(max(smp$pmf.sn)+length(tmp))
+  
+  ## update run order: 
+  # smp$run_order <- 1:nrow(smp)
   
   projname<-d["Service id:",1]
-
-  fnrange<-fnrange:(fnrange+length(names(smp))-1) 
-  ExpVars[fnrange]<-names(smp)
+  tmp<-unlist(strsplit(projname, "-"))
+  short.projectname <- paste(tmp[length(tmp)-1], tmp[length(tmp)], sep = "-")
   
-  # design<-suppressWarnings(edit(Experiment))
-  # 
-  # platform<-platforms[grep(as.character(design["platform",1]), platforms, ignore.case=TRUE)]
-  # 
-  # instrument<-edit(paramsets[[as.character(platform)]])
-  # 
-  # exp.pars<-list(design, instrument)
-  # names(exp.pars)<-c("design", "instrument")
+  ## copy submissionform file to project directory
+  file.copy(from=submissionform, to=paste0(projdir,  projname, ".", tools::file_ext(submissionform)))
   
-  
-  # cat("project directory created", paste0(pidir, "/", projname), '\n')
-  file.copy(from=submissionform, to=paste0(projdir, projname, ".", tools::file_ext(submissionform)))
-  #samples<-data.frame(orig_order, pmfname, smp)
-  #write.csv(samples, file=paste0(projdir, projname, "_samples.csv"), row.names=FALSE)
-  # bsize<-batchsize-floor(batchsize/QC)-1
-  # bnum<-ceiling(nrow(smp)/bsize)
-  # randsamples<-data.frame("batch"=rep(NA, nrow(samples)), "order"=rep(NA, nrow(samples)), samples)
-  # qcline<-randsamples[1,]; qcline[,"pmfname"]<-"QC"; qcline[,1:ncol(qcline)]<-NA
+  ## which platforms are we using? 
   doplatforms<-which(platforms[,2])
+  
+  ## for each platform
   for(i in doplatforms) {
     setwd(projdir)
+    
+    ## edit instrument parameters, if need be
     Exp<-ExpVars
     Exp["platform"]<-as.character(platforms[i,"platforms"])
     Experiment<-data.frame(Exp,stringsAsFactors=FALSE)
@@ -656,21 +753,31 @@ startProject<-function (
         instrument<-edit(paramsets[['newLC']])
       }
     }
+    
+    #create ExpDes object for saving to disk and using in RAMClustR processing
     ExpDes<-list(Experiment, instrument)
     names(ExpDes)<-c("design", "instrument")
     dir.create(platforms[i,1])
     setwd(platforms[i,1])
     save(ExpDes, file="ExpDes.Rdata")
     dir.create("R_scripts")
-    # file.copy(from = "K:/pmfWorkflow/run_pmfWorkflow.R", to = paste0("R_scripts/run_pmfWorkflow.R"))
-    # file.copy(from = "K:/pmfWorkflow/pmfWorkflowFunctions.R", to = paste0("R_scripts/pmfWorkflowFunctions.R"))
     
     tmp <- smp
-    tmp <- data.frame(tmp, 
-                      "filename" = paste(projname, formatC(1:nrow(tmp), width = nchar(nrow(tmp)), flag = 0), sep = "-"), 
-                      stringsAsFactors = FALSE)
-    reord <- sample(which(tmp[,1] != "QC"), replace = FALSE)
-    tmp[which(tmp[,1] != "QC"),] <- tmp[reord,]
+
+    ## randomize run order for all non-QC samples
+    reord <- sample(which(tmp[,"prep_order"] != "QC"), replace = FALSE)
+    tmp[which(tmp[,"prep_order"] != "QC"),] <- tmp[reord,]
+    
+    ## create file and sample names for run .csv file
+    tmp <- data.frame(
+      "filename" = paste(platforms[i,1], short.projectname, formatC(1:nrow(tmp), width = nchar(nrow(tmp)), flag = 0), sep = "-"), 
+      "sample.name" = sapply(1:nrow(tmp), FUN = function(x) {paste(tmp[x, 1:ncol(tmp)], collapse = "-")}),
+      tmp
+    )
+    
+
+    
+    tmp[,"run_order"] <- 1:nrow(tmp)
     
     if(stack & grepl("TOF_", Exp["platform"])) {
       

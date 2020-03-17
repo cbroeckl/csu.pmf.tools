@@ -10,8 +10,9 @@ startProject(
   QC = 6,
   randomize = TRUE,
   stack = FALSE,
-  extraction.blanks = 3,
-  solvent.blanks = 3
+  prep.blanks = 3,
+  solvent.blanks = 3,
+  destination.dir = "R:/RSTOR-PMF/Projects/"
 )
 }
 \arguments{
@@ -23,12 +24,14 @@ startProject(
 
 \item{stack}{should the injection sample list be set up for stacked injections (TOF platforms only, currenly)}
 
-\item{extraction.blanks}{integer - currently not used. (how many extraction blanks per prep batch?)}
+\item{prep.blanks}{integer - how many extraction blanks per prep batch?}
 
-\item{solvent.blanks}{integer - currently not used.  (how many solvent blanks per run batch? )}
+\item{solvent.blanks}{integer - how many solvent blanks per run batch?.}
+
+\item{destination.dir}{valid path to directory target output directory, by default: "R:/RSTOR-PMF/Projects/"}
 }
 \value{
-returns a list of length 3: $design is the experimental sample factors after parsing by the delim, $data is the dataset, $full.data is merged $des and $data data.frames.
+returns nothing, files written to directory selected by user.
 }
 \description{
 startProject
@@ -36,7 +39,9 @@ startProject
 \details{
 take info from iLab and iLab sample submission form and create sample prep and data acquisition templates and directories on the R:
 }
+\examples{
+startProject<-function (prep.batch.size = 48,run.batch.size=96, QC=6, randomize=TRUE, stack = FALSE, prep.blanks = 3, solvent.blanks = 3)
+}
 \author{
 Corey Broeckling
 }
-\concept{RAMClustR}
