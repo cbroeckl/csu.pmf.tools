@@ -92,7 +92,7 @@ pmfpca<-function(ramclustObj=RC,
                    tt=agDimTtest, tt2=agDimTtest2,
                    cpt=agDimCPT, cpm=f)
     npc <- ceiling(median(compareAgDimMethods(ag.obj, agfuns)))
-    orig.npc <- npc
+    
     
     ramclustObj$history <- paste(
       ramclustObj$history, 
@@ -100,7 +100,7 @@ pmfpca<-function(ramclustObj=RC,
       paste0("The median value of all nPC values from the 'compareAgDimMethods' function was used to set nPC to ", npc, ".")
     )
     if(npc < 2)  {
-      npc == 2
+      npc <- 2
       force.npc = TRUE
       ramclustObj$history <- paste(
         ramclustObj$history, 
@@ -127,20 +127,25 @@ pmfpca<-function(ramclustObj=RC,
   if(length(npc) <= 5) {plot.pcs <- rep(TRUE, npc)} else {plot.pcs <- rep(FALSE, npc)}
   plot.pcs[1:2] <- TRUE
   sig.pcs <- rep(FALSE, npc)
-  for(i in 1:length(which.factors)) {
-    if(min(table(d[[1]][,which.factors[i]])) <2 & !is.numeric(d[[1]][,which.factors[i]])) {
-      # warning(paste(which.factors[i], "Insufficient replication in factor:", "'", which.factors[i], "'", '\n'))
-      next
-    }
-    for(j in 1:npc) {
-      p <- as.numeric(anova(lm(pc$x[,j]~d[[1]][,which.factors[i]]))[1,"Pr(>F)"])
-
-      if(p < 0.05) {
-        plot.pcs[j] <- TRUE
-        sig.pcs[j] <- TRUE
+  if(!is.null(which.factors)) {
+    for(i in 1:length(which.factors)) {
+      if(min(table(d[[1]][,which.factors[i]])) <2 & !is.numeric(d[[1]][,which.factors[i]])) {
+        # warning(paste(which.factors[i], "Insufficient replication in factor:", "'", which.factors[i], "'", '\n'))
+        next
+      }
+      for(j in 1:npc) {
+        p <- as.numeric(anova(lm(pc$x[,j]~d[[1]][,which.factors[i]]))[1,"Pr(>F)"])
+        
+        if(p < 0.05) {
+          plot.pcs[j] <- TRUE
+          sig.pcs[j] <- TRUE
+        }
       }
     }
+  } else {
+    sig.pcs <- rep(FALSE, npc)
   }
+  
   
   ramclustObj$history <- paste0(
     ramclustObj$history, 
