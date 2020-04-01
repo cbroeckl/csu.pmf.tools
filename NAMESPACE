@@ -3,6 +3,7 @@
 export(degolm)
 export(editSampleNames)
 export(getData)
+export(golm.inchikey)
 export(make.zip.files)
 export(pmf.directory.report)
 export(pmfDefineExperiment)
