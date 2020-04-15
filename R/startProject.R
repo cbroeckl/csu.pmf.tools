@@ -91,7 +91,7 @@ startProject<-function (
   cat("Choose Sample Submission Form", '\n', '\n')
   submissionform <- choose.files(caption = "please navigate to and select the sample submission excel file.")
   
-
+  
   select.platforms <- function(){
     platforms<-c( 
       "GCMS_EI",      #1
@@ -763,7 +763,7 @@ startProject<-function (
     dir.create("R_scripts")
     
     tmp <- smp
-
+    
     ## randomize run order for all non-QC samples
     reord <- sample(which(tmp[,"prep_order"] != "QC"), replace = FALSE)
     tmp[which(tmp[,"prep_order"] != "QC"),] <- tmp[reord,]
@@ -775,7 +775,7 @@ startProject<-function (
       tmp
     )
     
-
+    
     
     tmp[,"run_order"] <- 1:nrow(tmp)
     
