@@ -37,10 +37,10 @@ pmfpca<-function(ramclustObj=RC,
     stop("must supply ramclustR object as input")
   }
   
-  if(!any(grepl("stats", list.dirs()))) {
+  if(!dir.exists("stats")) {
     dir.create('stats')
   }
-  if(!any(grepl("pca", list.dirs()))) {
+  if(!dir.exists("stats/pca")) {
     dir.create('stats/pca')
   }
   
@@ -100,7 +100,9 @@ pmfpca<-function(ramclustObj=RC,
       paste0("The median value of all nPC values from the 'compareAgDimMethods' function was used to set nPC to ", npc, ".")
     )
     if(npc < 2)  {
+      orig.npc <- npc
       npc <- 2
+      
       force.npc = TRUE
       ramclustObj$history <- paste(
         ramclustObj$history, 
@@ -161,7 +163,11 @@ pmfpca<-function(ramclustObj=RC,
        sub = "dashed line(s) indicate all possible nPC options, blue dotted represents median of all", 
        cex.sub = 0.5)
   abline(h = npc, col = "blue", lty = 3, lwd = 2)
-  legend(x = "topright", legend = if(force.npc) {paste0("Orig npc = ",orig.npc, "; Forced npc = ", npc)} else {paste("npc =", npc)}, bty = "n")
+  legend(x = "topright", legend = if(force.npc) {
+    paste0("Orig npc = ",orig.npc, "; Forced npc = ", npc)
+    } else {
+      paste("npc =", npc)
+      }, bty = "n")
   
   pt.cols <- rep("gray", length(pc$sdev)); pt.cols[1:npc] <- "darkgreen"
   rel.var <- round((spca@variances)/sum((spca@variances)), digits = 3)
