@@ -349,20 +349,23 @@ pmfxcms<-function(
   }
   dev.off()
   
-  ## perform tryCatch error capture to make this robust
-  # xset = tryCatch({
-  #   xset <- fillPeaks.chrom(xset, BPPARAM = SnowParam(workers = cores))
-  # }, warning = function(w) {
-  #   warning-handler-code
-  # }, error = function(e) {
-  #   return(xset)
-  #   warning("fillPeaks failed - imputation is an option...", '\n')
-  # }, finally = {
-  #   xset
-  # }
-  # )
+  # perform tryCatch error capture to make this robust when fillPeaks errors
+  # will return the non-filled xcmsObj
+  temp = tryCatch({
+    xset <- fillPeaks.chrom(xset, BPPARAM = SnowParam(workers = 1))
+  }, warning = function(w) {
+    warning-handler-code
+  }, error = function(e) {
+    { 
+      return(xset)
+      cat("fillPeaks failed - imputation is an option...", '\n')
+    }
+  }, finally = {
+    cat('\n')
+  }
+  )
   
-  xset <- fillPeaks.chrom(xset, BPPARAM = SnowParam(workers = cores))
+  # xset <- fillPeaks.chrom(xset, BPPARAM = SnowParam(workers = cores))
   
   if(grepl("Xevo", ExpDes$instrument["msinst",1]) & !is.null(ExpDes$instrument["CE2",1]))  {         		########for LC
     kept<- gsub(MStag, "", basename(xset@filepaths), ignore.case=TRUE)
