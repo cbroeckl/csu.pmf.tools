@@ -77,19 +77,13 @@ pmfanova<-function(ramclustObj=RC,
     d[[1]][,i] <- as.factor(d[[1]][,i])
   }
   
-  if(is.null(ramclustObj$history)) {
-    ramclustObj$history <- ""
-  }
   
-  
-  if(!grepl("Analysis of variance was performed in R", ramclustObj$history)) {
-    ramclustObj$history <- paste(
-      ramclustObj$history, '\n', '\n',
+
+    ramclustObj$history$anova <- paste(
       "Analysis of variance was performed in R.", 
       paste0("The ",  which.data, " dataset was used as input."), 
       if(!is.null(which.quan)) {paste0("The factor(s) [", paste(which.quan, collapse = " "), "] are treated as numeric." )}
     )
-  }
   
   
   if(is.null(anova.name)) {
@@ -108,8 +102,7 @@ pmfanova<-function(ramclustObj=RC,
   dir.create(out.dir)
   anova.name <- basename(out.dir)
   
-  ramclustObj$history <- paste(
-    ramclustObj$history,
+  ramclustObj$history$anova2 <- paste(
     paste0("For the analysis of variance titled '", anova.name, "',"),
     "the", which.data, "dataset was used as described below."
   )
@@ -132,14 +125,13 @@ pmfanova<-function(ramclustObj=RC,
     d[[1]] <- d[[1]][keep,]
     d[[2]] <- d[[2]][keep,]
     d[[3]] <- d[[3]][keep,]
-    ramclustObj$history <- paste(
-      ramclustObj$history,
-      paste0("The dataset was subsetted to include only samples for which [") 
-    )
-    for(i in 1:ncol(subset)) {
-      ramclustObj$history <- paste(ramclustObj$history, paste0(subset[1,i], "=", subset[2,i]))
-    }
-    ramclustObj$history <- paste0(ramclustObj$history, ".")
+    # ramclustObj$history$anova3 <- paste(
+    #   paste0("The dataset was subsetted to include only samples for which [") 
+    # )
+    # for(i in 1:ncol(subset)) {
+    #   ramclustObj$history <- paste(ramclustObj$history, paste0(subset[1,i], "=", subset[2,i]))
+    # }
+    # ramclustObj$history <- paste0(ramclustObj$history, ".")
   }
   
   dat<-d[[3]]
@@ -159,8 +151,7 @@ pmfanova<-function(ramclustObj=RC,
     dimnames(mp)[[1]] <- pnames
     dimnames(mp)[[2]] <- cmpd
     
-    ramclustObj$history <- paste(
-      ramclustObj$history,
+    ramclustObj$history$anova4 <- paste(
       "Fixed-factor linear model ANOVA was performed using the lm function.", 
       paste0("The model used was '", anova.call, ".'")
     )
@@ -178,8 +169,7 @@ pmfanova<-function(ramclustObj=RC,
     if(length(pnames) == dim(mp)[[2]]) {mp <- as.data.frame(t(mp))}
     dimnames(mp)[[1]] <- pnames
     dimnames(mp)[[2]] <- cmpd
-    ramclustObj$history <- paste(
-      ramclustObj$history,
+    ramclustObj$history$anova5 <- paste(
       "Mixed model ANOVA was performed using the lmer and lmerTest functions.", 
       paste0("The model used was '", anova.call, ".'"),
       "P-values were assigned using the 'anova' function with ddf set to 'Kenward-Roger.'"
@@ -220,8 +210,7 @@ pmfanova<-function(ramclustObj=RC,
       dimnames(pdata)[[2]] <- dimnames(mp)[[2]]
       mp<-rbind(mp, pdata)
     }
-    ramclustObj$history <- paste(
-      ramclustObj$history,
+    ramclustObj$history$anova6 <- paste(
       paste0("Post-hoc testing was performed for [", paste(posthoc, sep = " "), "] using the 'Tukey' method in the lsmeans package.")
     )
     
@@ -230,8 +219,7 @@ pmfanova<-function(ramclustObj=RC,
   ## apply pvalue correction
   for(i in 1:nrow(mp)) {
     mp[i,] <- p.adjust(mp[i,], method=p.adj, n = (dim(mp)[1]*dim(mp)[2]))
-    ramclustObj$history <- paste(
-      ramclustObj$history,
+    ramclustObj$history$anova7 <- paste(
       "P-value correction was performed using the p.adjust function with method set to", 
       paste0(p.adj, ".")
     )
@@ -254,8 +242,7 @@ pmfanova<-function(ramclustObj=RC,
     } else { 
       cat("effects plots failed:", '\n')
     }
-    ramclustObj$history <- paste(
-      ramclustObj$history,
+    ramclustObj$history$anova8 <- paste(
       "Effects plots are generated using the allEffects function."
     )
   }

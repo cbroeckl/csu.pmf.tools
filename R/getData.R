@@ -17,23 +17,33 @@ getData<-function(ramclustObj=RC,
                   delim="-",
                   cmpdlabel="cmpd"
 ) {
-  
-  dat <- ramclustObj[[which.data]]
-  if(length(ramclustObj[[cmpdlabel]]) == dim(ramclustObj[[which.data]])[2]) {
-    names(dat) <- ramclustObj[[cmpdlabel]]
+  if(is.null(ramclustObj$phenoData)) {  
+    dat <- ramclustObj[[which.data]]
+    if(length(ramclustObj[[cmpdlabel]]) == dim(ramclustObj[[which.data]])[2]) {
+      names(dat) <- ramclustObj[[cmpdlabel]]
+    } else {
+      stop(paste("ramclustObj slot", cmpdlabel, "has length", length(ramclustObj[[cmpdlabel]]), "while the", which.data, "dataset has", dim(ramclustObj[[which.data]])[2], "columns", '\n'))
+    }
+    des <- data.frame(t(data.frame(strsplit(row.names(dat), delim), check.names = FALSE)), stringsAsFactors = FALSE, check.names = FALSE)
+    row.names(des) <- row.names(dat)
+    
+    factors<-sapply(1:nrow(dat), FUN=function(x) length(strsplit(as.character(dimnames(dat)[[1]]), delim)[[x]]))
+    maxfact<-max(factors)
+    factnames<-c(ramclustObj$ExpDes$design[which(row.names(ramclustObj$ExpDes$design)=="fact1name"): 
+                                             (which(row.names(ramclustObj$ExpDes$design)=="fact1name")+(maxfact-1)), 1])
+    
+    names(des)<-factnames
+    dat<-list("design" = des, "data" = dat, "full.data" = cbind(des, dat))
   } else {
-    stop(paste("ramclustObj slot", cmpdlabel, "has length", length(ramclustObj[[cmpdlabel]]), "while the", which.data, "dataset has", dim(ramclustObj[[which.data]])[2], "columns", '\n'))
+    if(nrow(ramclustObj$phenoData) != nrow(ramclustObj[[which.data]])) {
+      stop('number of rows for phenoData and ', which.data, ' are not the same.', '\n')
+    }
+    dat <- list(
+      "design" = ramclustObj$phenoData, 
+      "data" = ramclustObj[[which.data]], 
+      "full.data" = data.frame(ramclustObj$phenoData, ramclustObj[[which.data]])
+    )
   }
-  des <- data.frame(t(data.frame(strsplit(row.names(dat), delim), check.names = FALSE)), stringsAsFactors = FALSE, check.names = FALSE)
-  row.names(des) <- row.names(dat)
-
-  factors<-sapply(1:nrow(dat), FUN=function(x) length(strsplit(as.character(dimnames(dat)[[1]]), delim)[[x]]))
-  maxfact<-max(factors)
-  factnames<-c(ramclustObj$ExpDes$design[which(row.names(ramclustObj$ExpDes$design)=="fact1name"): 
-                                           (which(row.names(ramclustObj$ExpDes$design)=="fact1name")+(maxfact-1)), 1])
-  
-  names(des)<-factnames
-  dat<-list("design" = des, "data" = dat, "full.data" = cbind(des, dat))
   return(dat)
 }	
 

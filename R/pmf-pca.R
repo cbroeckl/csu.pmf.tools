@@ -25,7 +25,7 @@ pmfpca<-function(ramclustObj=RC,
                  scale="pareto",
                  which.factors = NULL,
                  num.factors = NULL,
-                 label.by = "ann", 
+                 label.by = "cmpd", 
                  npc = "auto") {
   
   require(ggplot2)
@@ -44,19 +44,15 @@ pmfpca<-function(ramclustObj=RC,
     dir.create('stats/pca')
   }
   
-  if(is.null(ramclustObj$history)) {
-    ramclustObj$history <- ""
-  }
+  ramclustObj$history$PCA.main <- paste0(
+    "Principle Component Analysis was performed in R. The ", 
+    which.data, 
+    " dataset was used as input with scaling set to ", 
+    scale, ".")
   
-  ramclustObj$history <- paste(
-    ramclustObj$history, '\n', '\n',
-    "Principle Component Analysis was performed in R.", 
-    paste0("The ",  which.data, " dataset was used as input with scaling set to ", scale, ".")
-  )
-  
-  if(length(unique(ramclustObj$ann)) < length(ramclustObj$ann)) ramclustObj$ann <-  make.unique(ramclustObj$ann)
   
   d <- getData(ramclustObj)
+  
   
   if(!is.null(num.factors)) {
     for(i in 1:length(num.factors)) {
@@ -86,41 +82,36 @@ pmfpca<-function(ramclustObj=RC,
     force.npc = FALSE
     spca <- ClassDiscovery::SamplePCA(t(d[[2]]), center = TRUE)
     ag.obj <- PCDimension::AuerGervini(spca)
-    f <- makeAgCpmFun("Exponential")
+    f <- PCDimension::makeAgCpmFun("Exponential")
     agfuns <- list(twice=agDimTwiceMean, specc=agDimSpectral,
                    km=agDimKmeans, km3=agDimKmeans3,
                    tt=agDimTtest, tt2=agDimTtest2,
                    cpt=agDimCPT, cpm=f)
-    npc <- ceiling(median(compareAgDimMethods(ag.obj, agfuns)))
+    npc <- as.integer(ceiling(median(PCDimension::compareAgDimMethods(ag.obj, agfuns))))
     
     
-    ramclustObj$history <- paste(
-      ramclustObj$history, 
-      "The number of principle components was selected using the AuerGervini method from the ClassDiscovery R package.",
-      paste0("The median value of all nPC values from the 'compareAgDimMethods' function was used to set nPC to ", npc, ".")
-    )
+    ramclustObj$history$PCA.npc <- paste0(
+      "The number of principle components was selected using the ", 
+      "AuerGervini method from the ClassDiscovery R package. ", 
+      "The median value of all nPC values from the 'compareAgDimMethods' function ",
+      "was used to set nPC to ", npc, ".")
+    
     if(npc < 2)  {
       orig.npc <- npc
       npc <- 2
       
       force.npc = TRUE
-      ramclustObj$history <- paste(
-        ramclustObj$history, 
+      ramclustObj$history$PCA.npc <- paste(ramclustObj$history$PCA.npc, 
         "The nPC value was then manually set to '2' to enable two dimensional plotting. "
       )
-      }
-    
-    
-    
+    }
   } else {
     if(!is.integer(npc)) {
       stop("please set npc to either an integer value or 'auto'", '\n')
     }
     ramclustObj$history <- paste(
-      ramclustObj$history, 
-      paste0("The nPC value was  manually set to ", npc, ".")
+      paste0("The nPC value was manually set to ", npc, ".")
     )
-    
   }
   
   
@@ -149,25 +140,26 @@ pmfpca<-function(ramclustObj=RC,
   }
   
   
-  ramclustObj$history <- paste0(
-    ramclustObj$history, 
-    " Linear model ANOVA was performed for the factor(s) [",
-    paste(which.factors, collapse = " "), 
+  ramclustObj$history$PCA.anova <- paste0(
+    "Linear model ANOVA was performed for the factor(s) [",
+    paste(which.factors, collapse = ", "), 
     "] to provide some guidance on which PCs appear responsive to factors of interest.", 
-    " These are not meant to be rigorous statistical tests but to help guide your interpretation of the data."
+    " These are not meant to be rigorous statistical tests but to help guide interpretation of the data."
   )
   
   pdf('stats/pca/plots.pdf', width = 10, height = 6)
   par(mfrow = c(1,2))
-  plot(ag.obj, agfuns, main = "n PC selection: AuerGervini method",
-       sub = "dashed line(s) indicate all possible nPC options, blue dotted represents median of all", 
+  plot(ag.obj, agfuns, 
+       main = "n PC selection: AuerGervini method",
+       sub = "dashed line(s) indicate all possible nPC options, 
+       blue dotted represents median of all", 
        cex.sub = 0.5)
   abline(h = npc, col = "blue", lty = 3, lwd = 2)
   legend(x = "topright", legend = if(force.npc) {
     paste0("Orig npc = ",orig.npc, "; Forced npc = ", npc)
-    } else {
-      paste("npc =", npc)
-      }, bty = "n")
+  } else {
+    paste("npc =", npc)
+  }, bty = "n")
   
   pt.cols <- rep("gray", length(pc$sdev)); pt.cols[1:npc] <- "darkgreen"
   rel.var <- round((spca@variances)/sum((spca@variances)), digits = 3)
@@ -201,12 +193,11 @@ pmfpca<-function(ramclustObj=RC,
     loadings.out[which(tmp > 0.05),i] <- "NA"
   }
   
-  ramclustObj$history <- paste(
-    ramclustObj$history, 
+  ramclustObj$history$loadings <- paste(
     "Outlier tests are performed on PC loadings to serve as a guide in interpreting which compounds contribute most to the observed separation.", 
     "This is performed using the R pnorm function. Returned p-values are false discovery rate corrected.", 
     "These p-values are not used to conclude that a compound is significantly changing, but rather to indicate that a compound disproportionately contributes to the multivariate sample separation observed for that PC."
-    )
+  )
   
   write.csv(pc$rotation, file = "stats/pca/loadings.values.allPCs.csv")
   write.csv(loadings.out, file = "stats/pca/loadings.outliers.csv")
