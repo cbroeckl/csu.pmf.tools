@@ -4,9 +4,15 @@
 \alias{pmfpca}
 \title{pmfpca}
 \usage{
-pmfpca(ramclustObj = RC, which.data = "SpecAbund", scale = "pareto",
-  which.factors = NULL, num.factors = NULL, label.by = "ann",
-  npc = "auto")
+pmfpca(
+  ramclustObj = RC,
+  which.data = "SpecAbund",
+  scale = "pareto",
+  which.factors = NULL,
+  num.factors = NULL,
+  label.by = "ann",
+  npc = "auto"
+)
 }
 \arguments{
 \item{ramclustObj}{ramclustR object to perform PCA on}
@@ -32,7 +38,7 @@ perform principle compponent analysis on ramclustR object dataset, export plots
 \details{
 This function uses the native prcomp() function in R to perform PCA analysis.
 
-Automatic selection of the number of principle components using the AuerGervini method is enabled by the PCDimension and ClassDiscovery packages
+Automatic selection of the number of principle components using the AuerGervini method is enabled by the PCDimension and ClassDiscovery packages.
 
 R PCA AuerGervini objects are attached to the ramclustR object, and summary plots and csv files are written to the stats/pca directory in the working directory
 

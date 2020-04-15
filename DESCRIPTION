@@ -8,4 +8,4 @@ Maintainer: Corey Broeckling <corey.broeckling@colostate.edu>
 Description: xcms wrapper, QC summary, some stats, and some convenience functions
 Requires: base, stats, utils, ggplot2, ggfortify, PCDimension, ClassDiscovery, RAMClustR, pcaMethods, effects, lme4, lmerTest, lsmeans, pbkrtest
 License: These tools are designed for use by CSU PMF staff. Please acknowledge if used.  We are under no obligation to take feature requests from outside our group. 
-RoxygenNote: 6.1.1
+RoxygenNote: 7.1.0

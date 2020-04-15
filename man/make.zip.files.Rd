@@ -4,9 +4,11 @@
 \alias{make.zip.files}
 \title{zip selected directories and move to 'report' directory.}
 \usage{
-make.zip.files(directories = c("datasets", "spectra", "QC", "stats"),
-  do.raw = TRUE, raw.file.extensions = c(".cdf", ".mzML", ".mzXML",
-  ".cmbx", ".PRO", ".raw"))
+make.zip.files(
+  directories = c("datasets", "spectra", "QC", "stats"),
+  do.raw = TRUE,
+  raw.file.extensions = c(".cdf", ".mzML", ".mzXML", ".cmbx", ".PRO", ".raw")
+)
 }
 \arguments{
 \item{raw.file.extensions}{- character vector. which file extensions represent raw files.  Default: c(".cdf", ".mzML", ".mzXML", ".PRO", ".cmbx", ".raw").}
