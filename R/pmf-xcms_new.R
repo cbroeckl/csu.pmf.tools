@@ -31,7 +31,8 @@ pmfxcms.2<-function(
   sn = 5,
   minfrac = 0.4,
   bw.pre = 3,
-  bw.post = 1.2
+  bw.post = 1.2,
+  n.cores = 4
 ) {
   
   require(xcms)
@@ -139,7 +140,7 @@ pmfxcms.2<-function(
   ms1.time.range <- range(h[intersect(file.1, is.ms1),"retentionTime"])
   ms1.scan.interval <- (ms1.time.range[2] - ms1.time.range[1])/length(intersect(file.1, is.ms1))
   ms.fwhm <- round(550/ms.res, digits = 3)
-  ppm <- round((1000000*ms.fwhm)/(550*2.355))
+  ppm <- round(1.5*(1000000*ms.fwhm)/(550*2.355))
   
   if(!is.na(ms2)) {
     set.masses <- unique(round(h$precursorMZ[is.ms2]))
@@ -169,7 +170,7 @@ pmfxcms.2<-function(
   raw_data@featureData@data$msLevel <- rep(1, length(orig.msLevel))
   
   ## set up parallel parameters
-  mcpar <- SnowParam(workers = 4, type = "SOCK")
+  mcpar <- SnowParam(workers = n.cores, type = "SOCK")
   
   if(is.na(ms.res)) {
     stop("not set up for matched.filter just yet", '\n')
