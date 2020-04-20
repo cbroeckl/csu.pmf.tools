@@ -12,7 +12,7 @@
 #' @export 
 
 reportSampleNames<-function(
-  ramclustObj=RC,
+  ramclustObj=NULL,
   which.data="SpecAbund",
   delim="-",
   cmpdlabel="cmpd",
@@ -24,8 +24,6 @@ reportSampleNames<-function(
     filename <-  "tmp.report/sample.names.txt"
   }
 
-  
-  
   d <- getData(ramclustObj = ramclustObj, which.data = which.data, delim = delim, cmpdlabel = cmpdlabel)
   
   out <- paste("The sample set after all processing contains", nrow(ramclustObj[[which.data]]), "samples analyses.", '\n') 
@@ -45,7 +43,7 @@ reportSampleNames<-function(
   sink(filename)
   cat(out)
   sink()
-  cat(out)
+  # cat(out)
   cat(paste0("File written to ", getwd(), "/", filename, '\n'))
   return(ramclustObj)
 }	
