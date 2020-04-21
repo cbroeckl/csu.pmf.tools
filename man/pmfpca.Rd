@@ -10,7 +10,7 @@ pmfpca(
   scale = "pareto",
   which.factors = NULL,
   num.factors = NULL,
-  label.by = "ann",
+  label.by = "cmpd",
   npc = "auto"
 )
 }

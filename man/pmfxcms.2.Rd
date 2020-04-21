@@ -14,7 +14,8 @@ pmfxcms.2(
   sn = 5,
   minfrac = 0.4,
   bw.pre = 3,
-  bw.post = 1.2
+  bw.post = 1.2,
+  n.cores = 4
 )
 }
 \arguments{

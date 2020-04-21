@@ -6,14 +6,14 @@
 \usage{
 pmfxcms(
   ExpDes = NULL,
-  MStag = "_01.mzML",
-  idMSMStag = "_02.mzML",
-  filetype = "mzML",
+  MStag = "01.cdf",
+  idMSMStag = "02.cdf",
+  filetype = "cdf",
   factorfile = "seq.csv",
   cores = 4,
   minpw = 3,
   maxpw = 30,
-  filtPeaks = FALSE,
+  filtPeaks = TRUE,
   ppmerr = 35,
   minTIC = 10,
   outTIC = TRUE,

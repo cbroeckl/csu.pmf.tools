@@ -2,7 +2,7 @@ Package: csu.pmf.tools
 Type: Package
 Title: a collection of features used internally at CSU PMF for non-targeted metabolomics data processing
 Version: 1.0
-Date: 2019-09-18
+Date: 2020-04-21
 Author: Corey Broeckling
 Maintainer: Corey Broeckling <corey.broeckling@colostate.edu>
 Description: xcms wrapper, QC summary, some stats, and some convenience functions

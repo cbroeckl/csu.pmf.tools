@@ -5,7 +5,7 @@
 \title{convenient reporting of sample name and design}
 \usage{
 reportSampleNames(
-  ramclustObj = RC,
+  ramclustObj = NULL,
   which.data = "SpecAbund",
   delim = "-",
   cmpdlabel = "cmpd",
