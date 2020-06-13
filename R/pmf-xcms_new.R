@@ -16,6 +16,7 @@
 #' @param minfrac minimum proportion of samples in which a feature must be present (at one MS level). i.e. 0.4 is 4 out of 10.
 #' @param bw.pre bandwidth for pre-rt correction grouping.  suggested value is 3, but if there is a good deal of retention drift over the sample set a larger value should be used. 
 #' @param bw.post bandwidth for post-rt correction grouping.  suggested values is 1.5.  
+#' @param reprocess filepath/name - should we try reprocessing an existing xcmsSet?  provide file name.  Will reprocess all steps after peak detection. 
 #' @return returns an xcms object
 #' @concept RAMClustR xcms
 #' @author Corey Broeckling
@@ -32,7 +33,8 @@ pmfxcms.2<-function(
   minfrac = 0.4,
   bw.pre = 3,
   bw.post = 1.2,
-  n.cores = 4
+  n.cores = 4,
+  reprocess = NULL
 ) {
   
   require(xcms)
@@ -184,7 +186,14 @@ pmfxcms.2<-function(
                          mzdiff = ms.fwhm,
                          fitgauss = TRUE,
                          verboseColumns = TRUE)
-    xdata <- findChromPeaks(raw_data, param = cwp, msLevel = 1, BPPARAM = mcpar)
+    if(is.null(reprocess)) {
+      xdata <- findChromPeaks(raw_data, param = cwp, msLevel = 1, BPPARAM = mcpar)
+    } else {
+      if(is.logical(reprocess)) {stop("reprocess should be a file name, not a logical statement, '\n'")}
+      if(!file.exist(reprocess)) {stop("file", reprocess, "does not exist", '\n')}
+      tmp <- load(reprocess)
+      xdata <- get(tmp)
+    }
     # if(mse) {
     #   xdata <- findChromPeaks(xdata, param = cwp, msLevel = 2, add = TRUE)
     # }
