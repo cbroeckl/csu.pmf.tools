@@ -11,8 +11,8 @@ startProject(
   randomize = TRUE,
   stack = FALSE,
   prep.blanks = 3,
-  solvent.blanks = 3,
-  destination.dir = "R:/RSTOR-PMF/Projects/"
+  destination.dir = "C:/Users/",
+  sub.project.name = NULL
 )
 }
 \arguments{
@@ -26,9 +26,9 @@ startProject(
 
 \item{prep.blanks}{integer - how many extraction blanks per prep batch?}
 
-\item{solvent.blanks}{integer - how many solvent blanks per run batch?.}
-
 \item{destination.dir}{valid path to directory target output directory, by default: "R:/RSTOR-PMF/Projects/"}
+
+\item{solvent.blanks}{integer - how many solvent blanks per run batch?.}
 }
 \value{
 returns nothing, files written to directory selected by user.

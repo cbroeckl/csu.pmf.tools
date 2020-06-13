@@ -15,7 +15,8 @@ pmfxcms.2(
   minfrac = 0.4,
   bw.pre = 3,
   bw.post = 1.2,
-  n.cores = 4
+  n.cores = 4,
+  reprocess = NULL
 )
 }
 \arguments{
@@ -38,6 +39,8 @@ pmfxcms.2(
 \item{bw.pre}{bandwidth for pre-rt correction grouping.  suggested value is 3, but if there is a good deal of retention drift over the sample set a larger value should be used.}
 
 \item{bw.post}{bandwidth for post-rt correction grouping.  suggested values is 1.5.}
+
+\item{reprocess}{filepath/name - should we try reprocessing an existing xcmsSet?  provide file name.  Will reprocess all steps after peak detection.}
 }
 \value{
 returns an xcms object
