@@ -190,7 +190,7 @@ pmfxcms.2<-function(
       xdata <- findChromPeaks(raw_data, param = cwp, msLevel = 1, BPPARAM = mcpar)
     } else {
       if(is.logical(reprocess)) {stop("reprocess should be a file name, not a logical statement, '\n'")}
-      if(!file.exist(reprocess)) {stop("file", reprocess, "does not exist", '\n')}
+      if(!file.exists(reprocess)) {stop("file", reprocess, "does not exist", '\n')}
       tmp <- load(reprocess)
       xdata <- get(tmp)
     }
