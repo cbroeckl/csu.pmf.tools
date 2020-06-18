@@ -10,11 +10,13 @@
 #' @param anova.call charachter;  the model you wish to run.  i.e. "Trt * Time" or "Trt * Time + (1|Block)" 
 #' @param posthoc character; if you wish to perform post hoc testing, define the posthoc test to use.  i.e. if anova.call is "Trt * Time" you can use "Trt|Time" to specific 'treatment within time' comparisons.
 #' @param effectsplots logical; if TRUE, plot effect plots in pdf format.  If plotting fails, can set to 'FALSE' to get tabular results only.
+#' @param label.by  how should metabolites columns be labelled? one of 'ann' or 'cmpd', typically. 
 #' @param delim character; what is the character delimiting factors in the sample names.  generally '-'
 #' @param plots logical; if plotting is any issue set this to FALSE. 
 #' @param pcut numeric; what is the pvalue cutoff for determining significance?  Used only for plotting. 
 #' @param p.adj character; what p.adjust method should be used.  generally 'fdr' or 'bh' (equivalent). see ?p.adjust
 #' @param which.quan; chracter vector.  which factors should be interpreted as quantitative?  i.e. c("time", "dose")
+#' @param filter logical, TRUE by default. when $cmpd.use slot is present (from rc.cmpd.filter.cv function), only cmpds that passed cv filtering are used. If you wish to change that behavior, rerun the rc.cmpd.filter.cv function with a really high CV threshold. 
 #' @return returns a ramclustR object.  new R object in $pca slot. Optionally, new R object in $AuerGervini slot if npc = "auto".
 #' @concept RAMClustR
 #' @author Corey Broeckling
@@ -25,6 +27,7 @@
 pmfanova<-function(ramclustObj=RC,
                    anova.name = NULL,
                    which.data="SpecAbund",
+                   label.by = "cmpd", 
                    subset = c(""),
                    anova.call=NULL,
                    posthoc=NULL,
@@ -33,7 +36,8 @@ pmfanova<-function(ramclustObj=RC,
                    plots=TRUE,
                    pcut=0.05,
                    p.adj="BH",
-                   which.quan=NULL
+                   which.quan=NULL,
+                   filter = TRUE
 ) {
   require(effects)
   require(lme4)
@@ -48,7 +52,27 @@ pmfanova<-function(ramclustObj=RC,
     dir.create('stats/anova')
   }
   
-  d <- csu.pmf.tools::getData(ramclustObj, which.data)
+  d <- getData(
+    ramclustObj = ramclustObj, 
+    which.data = which.data, 
+    filter = filter,
+    cmpdlabel = label.by
+    )
+  
+  if(filter){
+    if(!is.null(ramclustObj$cmpd.use)) {
+      if(length(ramclustObj$cmpd.use == ncol(d[[2]]))) {
+        cmpd.use <- which(ramclustObj$cmpd.use)
+      } else {
+        cmpd.use <- 1:ncol(d[[2]])
+      }
+    } else {
+      cmpd.use <- 1:ncol(d[[2]])
+    }
+  } else {
+    cmpd.use <- 1:ncol(d[[2]])
+  }
+  
   
   ## remove samples that have NA values in any factor from anova.call
   keep <- rep(TRUE, nrow(d[[1]]))
@@ -142,9 +166,9 @@ pmfanova<-function(ramclustObj=RC,
   
   if(use == 1) {
     cat("using fixed linear model analysis", '\n')
-    test <- lm(as.formula(paste(ramclustObj$cmpd[1], "~", anova.call)), data = dat)
+    test <- lm(as.formula(paste(cmpd[1], "~", anova.call)), data = dat)
     res<-lapply(1:length(cmpd), FUN = function(x){
-      lm(as.formula(paste(ramclustObj$cmpd[x], "~", anova.call)), data = dat)
+      lm(as.formula(paste(cmpd[x], "~", anova.call)), data = dat)
     })
     pnames<-attr(attr(res[[1]]$model, which="terms"), which="term.labels")
     mp<-data.frame(lapply(1:length(res), FUN=function(x) {anova(res[[x]])$"Pr(>F)"[1:length(pnames)]}))
@@ -236,7 +260,7 @@ pmfanova<-function(ramclustObj=RC,
       
       for(i in 1:length(res)) {
         # cat(i, '\n')
-        plot(allEffects(res[[i]]), main=ramclustObj$ann[i], ylab="effect size (signal intensity)")
+        plot(allEffects(res[[i]]), main=cmpd[i], ylab="effect size (signal intensity)")
       }
       dev.off()
     } else { 
@@ -298,8 +322,9 @@ pmfanova<-function(ramclustObj=RC,
     
     if(!is.null(ramclustObj$clrt) & !is.null(ramclustObj$annconf)) {
       write.csv(file=paste0(out.dir, "/anova_pvalues.csv"), 
-                data.frame("cmpd"=ramclustObj$cmpd, "annotation"=ramclustObj$ann, 
-                           "annconf"=ramclustObj$annconf, "rt"=ramclustObj$clrt, t(mp), check.names=FALSE), row.names=FALSE)} else {
+                data.frame("cmpd"=ramclustObj$cmpd[cmpd.use], "annotation"=ramclustObj$ann[cmpd.use], 
+                           "annconf"=ramclustObj$annconf[cmpd.use], "rt"=ramclustObj$clrt[cmpd.use],
+                           t(mp), check.names=FALSE), row.names=FALSE)} else {
                              write.csv(file="stats/anova/anova_pvalues.csv", mp, row.names=TRUE)
                            }
   }

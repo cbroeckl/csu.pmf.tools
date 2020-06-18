@@ -5,7 +5,7 @@
 #' @details Automatic selection of the number of principle components using the AuerGervini method is enabled by the PCDimension and ClassDiscovery packages.
 #' @details R PCA AuerGervini objects are attached to the ramclustR object, and summary plots and csv files are written to the stats/pca directory in the working directory
 #' @details a methods narrative is also appended to the $history slot
-#' 
+
 #' @param ramclustObj ramclustR object to perform PCA on
 #' @param which.data character; which dataset (SpecAbund or SpecAbundAve) to perform PCA on.  
 #' @param scale  character; default = 'pareto'.  will also accept 'uv' or 'none'   
@@ -13,6 +13,8 @@
 #' @param num.factors which factors should be treated as numeric? must be subset of 'which.factors'. i.e. c("time")
 #' @param label.by  how should metabolites columns be labelled? one of 'ann' or 'cmpd', typically. 
 #' @param npc "auto" by default (recommended).  This will autoselect number of PCs to use.  Can also be set to any integer value to force more PCs.
+#' @param filter logical, TRUE by default. when $cmpd.use slot is present (from rc.cmpd.filter.cv function), only cmpds that passed cv filtering are used. If you wish to change that behavior, rerun the rc.cmpd.filter.cv function with a really high CV threshold. 
+
 #' @return returns a ramclustR object.  new R object in $pca slot. Optionally, new R object in $AuerGervini slot if npc = "auto".
 #' @concept RAMClustR
 #' @author Corey Broeckling
@@ -26,7 +28,8 @@ pmfpca<-function(ramclustObj=RC,
                  which.factors = NULL,
                  num.factors = NULL,
                  label.by = "cmpd", 
-                 npc = "auto") {
+                 npc = "auto",
+                 filter = TRUE) {
   
   require(ggplot2)
   require(ggfortify)
@@ -51,7 +54,12 @@ pmfpca<-function(ramclustObj=RC,
     scale, ".")
   
   
-  d <- getData(ramclustObj)
+  d <- getData(
+    ramclustObj = ramclustObj, 
+    which.data = which.data, 
+    filter = filter,
+    cmpdlabel = label.by
+  )
   
   
   if(!is.null(num.factors)) {
