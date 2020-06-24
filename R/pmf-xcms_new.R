@@ -235,7 +235,7 @@ pmfxcms.2<-function(
   
   ### XCMS feature grouping, pre-RT correction
   
-  pdp <- PeakDensityParam(sampleGroups = sample.groups, mzwid = ms.fwhm,
+  pdp <- PeakDensityParam(sampleGroups = sample.groups, binSize = ms.fwhm,
                           minFraction = minfrac, bw = bw.post)
   xdata <- groupChromPeaks(xdata, param = pdp) 
   
