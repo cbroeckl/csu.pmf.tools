@@ -260,7 +260,7 @@ pmfanova<-function(ramclustObj=RC,
       
       for(i in 1:length(res)) {
         # cat(i, '\n')
-        plot(allEffects(res[[i]]), main=cmpd[i], ylab="effect size (signal intensity)")
+        plot(allEffects(res[[i]]), main=ramclustObj[[label.by]][i], ylab="effect size (signal intensity)")
       }
       dev.off()
     } else { 
