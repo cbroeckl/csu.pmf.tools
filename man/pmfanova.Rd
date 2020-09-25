@@ -30,7 +30,7 @@ pmfanova(
 
 \item{label.by}{how should metabolites columns be labelled? one of 'ann' or 'cmpd', typically.}
 
-\item{subset}{character vector; must be even length.  If you wish to perform ANOVA only when your factor called 'treatment' is a 'trt' sample and when 'time' is '3', then you would use is i.e. c("treatment", "trt", "time", "3"). vector length must always be even, and with 'factor' followed by 'level'.}
+\item{subset}{character or integer vector; if character, must be even length.  If you wish to perform ANOVA only when your factor called 'treatment' is a 'trt' sample and when 'time' is '3', then you would use  i.e. c("treatment", "trt", "time", "3"). vector length must always be even, and with 'factor' followed by 'level'.  If an integer vector is provided, only row numbers matching those integers are retained.}
 
 \item{anova.call}{charachter;  the model you wish to run.  i.e. "Trt * Time" or "Trt * Time + (1|Block)"}
 
