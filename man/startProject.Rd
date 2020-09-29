@@ -11,8 +11,10 @@ startProject(
   randomize = TRUE,
   stack = FALSE,
   prep.blanks = 3,
-  destination.dir = "C:/Users/",
-  sub.project.name = NULL
+  LTR = 2,
+  solvent.blanks = 2,
+  destination.dir = "R:/RSTOR-PMF/Projects/",
+  sub.project.name = "urine"
 )
 }
 \arguments{
@@ -24,11 +26,13 @@ startProject(
 
 \item{stack}{should the injection sample list be set up for stacked injections (TOF platforms only, currenly)}
 
-\item{prep.blanks}{integer - how many extraction blanks per prep batch?}
+\item{prep.blanks}{integer - how many extraction blanks per prep batch? prep.blanks will be inserted into the prep sequence in random sequence position(s).}
+
+\item{LTR}{even integer - how many long term reference material (LTR) vials per batch? default = 2.  LTR samples will be inserted at the start and end of each batch.}
+
+\item{solvent.blanks}{even integer - how many solvent blank vials  per batch? default = 0. solvent blanks will be inserted at the start and end of each batch.}
 
 \item{destination.dir}{valid path to directory target output directory, by default: "R:/RSTOR-PMF/Projects/"}
-
-\item{solvent.blanks}{integer - how many solvent blanks per run batch?.}
 }
 \value{
 returns nothing, files written to directory selected by user.
@@ -40,7 +44,7 @@ startProject
 take info from iLab and iLab sample submission form and create sample prep and data acquisition templates and directories on the R:
 }
 \examples{
-startProject<-function (prep.batch.size = 48,run.batch.size=96, QC=6, randomize=TRUE, stack = FALSE, prep.blanks = 3, solvent.blanks = 3)
+startProject<-function (prep.batch.size = 48,run.batch.size=96, QC=6, randomize=TRUE, stack = FALSE, prep.blanks = 3, LTR = 3)
 }
 \author{
 Corey Broeckling
