@@ -8,6 +8,7 @@
 
 #' @param ramclustObj ramclustR object to perform PCA on
 #' @param which.data character; which dataset (SpecAbund or SpecAbundAve) to perform PCA on.  
+#' @param subset character or integer vector; if character, must be even length.  If you wish to perform PCA only when your factor called 'treatment' is a 'trt' sample and when 'time' is '3', then you would use  i.e. c("treatment", "trt", "time", "3"). vector length must always be even, and with 'factor' followed by 'level'.  If an integer vector is provided, only row numbers matching those integers are retained. 
 #' @param scale  character; default = 'pareto'.  will also accept 'uv' or 'none'   
 #' @param which.factors  character vector; i.e. which.factors = c("treatment", "time").   which factors should be used for coloring PCA plots?  
 #' @param num.factors which factors should be treated as numeric? must be subset of 'which.factors'. i.e. c("time")
@@ -25,6 +26,7 @@
 pmfpca<-function(ramclustObj=RC,
                  which.data="SpecAbund",
                  scale="pareto",
+                 subset = c(""),
                  which.factors = NULL,
                  num.factors = NULL,
                  label.by = "cmpd", 
@@ -47,6 +49,10 @@ pmfpca<-function(ramclustObj=RC,
     dir.create('stats/pca')
   }
   
+  if(is.null(subset)) {
+    subset <- c("")
+  }
+  
   ramclustObj$history$PCA.main <- paste0(
     "Principle Component Analysis was performed in R. The ", 
     which.data, 
@@ -60,6 +66,40 @@ pmfpca<-function(ramclustObj=RC,
     filter = filter,
     cmpdlabel = label.by
   )
+  
+  if(length(subset) > 1) {
+    if(is.integer(subset))  {
+      d[[1]] <- d[[1]][subset,]
+      d[[2]] <- d[[2]][subset,]
+      d[[3]] <- d[[3]][subset,]
+    } else {
+      if(length(subset)/2 != round(length(subset)/2)) stop("'subset' length must be even", '\n')
+      subset <- matrix(subset, nrow = 2)
+      keep <- 1:nrow(d[[1]])
+      for(i in 1:ncol(subset)) {
+        if(!any(names(d[[1]]) == subset[1,i])) {
+          stop(paste("factor", subset[1,i], "was not found", '\n'))
+        }
+        f <- as.character(d[[1]][,subset[1,i]])
+        k <- which(f == subset[2,i])
+        if(length(k) == 0) {
+          stop(paste("level", subset[2,], "in factor", subset[1,i], "was not found", '\n'))
+        }
+        keep <- sort(intersect(keep, k))
+      }
+      d[[1]] <- d[[1]][keep,]
+      d[[2]] <- d[[2]][keep,]
+      d[[3]] <- d[[3]][keep,]
+      # ramclustObj$history$anova3 <- paste(
+      #   paste0("The dataset was subsetted to include only samples for which [") 
+      # )
+      # for(i in 1:ncol(subset)) {
+      #   ramclustObj$history <- paste(ramclustObj$history, paste0(subset[1,i], "=", subset[2,i]))
+      # }
+      # ramclustObj$history <- paste0(ramclustObj$history, ".")
+    }
+    
+  }
   
   
   if(!is.null(num.factors)) {
@@ -114,7 +154,7 @@ pmfpca<-function(ramclustObj=RC,
       )
     }
   } else {
-    if(!is.integer(as.ingeger(npc))) {
+    if(!is.integer(as.integer(npc))) {
       stop("please set npc to either an integer value or 'auto'", '\n')
     }
     ramclustObj$history <- paste(
@@ -158,21 +198,21 @@ pmfpca<-function(ramclustObj=RC,
   pdf('stats/pca/plots.pdf', width = 10, height = 6)
   if(any(ls() == ("ag.obj"))) {
     par(mfrow = c(1,2))
-    cat("before plotting", '\n')
+    # cat("before plotting", '\n')
     plot(ag.obj, agfuns, 
          main = "n PC selection: AuerGervini method",
          sub = "dashed line(s) indicate all possible nPC options, 
        blue dotted represents median of all", 
          cex.sub = 0.5)
-    cat("after plotting", '\n')
+    # cat("after plotting", '\n')
     abline(h = npc, col = "blue", lty = 3, lwd = 2)
-    cat("after abline", '\n')
+    # cat("after abline", '\n')
     legend(x = "topright", legend = if(force.npc) {
       paste0("Orig npc = ",orig.npc, "; Forced npc = ", npc)
     } else {
       paste("npc =", npc)
     }, bty = "n")
-    cat("after legend", '\n')
+    # cat("after legend", '\n')
     pt.cols <- rep("gray", length(pc$sdev)); pt.cols[1:npc] <- "darkgreen"
     rel.var <- round((spca@variances)/sum((spca@variances)), digits = 3)
     plot(1:(2*npc), rel.var[1:(2*npc)], col = pt.cols, mgp = c(3,1,0), ylim = c(0, 1.2*rel.var[1]), 
