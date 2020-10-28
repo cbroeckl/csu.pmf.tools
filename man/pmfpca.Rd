@@ -8,11 +8,12 @@ pmfpca(
   ramclustObj = RC,
   which.data = "SpecAbund",
   scale = "pareto",
+  subset = c(""),
   which.factors = NULL,
   num.factors = NULL,
   label.by = "cmpd",
   npc = "auto",
-  filter = TRUE
+  filter = FALSE
 )
 }
 \arguments{
@@ -21,6 +22,8 @@ pmfpca(
 \item{which.data}{character; which dataset (SpecAbund or SpecAbundAve) to perform PCA on.}
 
 \item{scale}{character; default = 'pareto'.  will also accept 'uv' or 'none'}
+
+\item{subset}{character or integer vector; if character, must be even length.  If you wish to perform PCA only when your factor called 'treatment' is a 'trt' sample and when 'time' is '3', then you would use  i.e. c("treatment", "trt", "time", "3"). vector length must always be even, and with 'factor' followed by 'level'.  If an integer vector is provided, only row numbers matching those integers are retained.}
 
 \item{which.factors}{character vector; i.e. which.factors = c("treatment", "time").   which factors should be used for coloring PCA plots?}
 
