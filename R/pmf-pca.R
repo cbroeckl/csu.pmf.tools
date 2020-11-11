@@ -31,6 +31,7 @@ pmfpca<-function(ramclustObj=RC,
                  num.factors = NULL,
                  label.by = "cmpd", 
                  npc = "auto",
+                 ag.summary.plot = TRUE,
                  filter = FALSE) {
   
   require(ggplot2)
@@ -197,36 +198,39 @@ pmfpca<-function(ramclustObj=RC,
   
   pdf('stats/pca/plots.pdf', width = 10, height = 6)
   if(any(ls() == ("ag.obj"))) {
-    par(mfrow = c(1,2))
-    # cat("before plotting", '\n')
-    plot(ag.obj, agfuns, 
-         main = "n PC selection: AuerGervini method",
-         sub = "dashed line(s) indicate all possible nPC options, 
+    if(ag.summary.plot) {
+      par(mfrow = c(1,2))
+      # cat("before plotting", '\n')
+      plot(ag.obj, agfuns, 
+           main = "n PC selection: AuerGervini method",
+           sub = "dashed line(s) indicate all possible nPC options, 
        blue dotted represents median of all", 
-         cex.sub = 0.5)
-    # cat("after plotting", '\n')
-    abline(h = npc, col = "blue", lty = 3, lwd = 2)
-    # cat("after abline", '\n')
-    legend(x = "topright", legend = if(force.npc) {
-      paste0("Orig npc = ",orig.npc, "; Forced npc = ", npc)
-    } else {
-      paste("npc =", npc)
-    }, bty = "n")
-    # cat("after legend", '\n')
-    pt.cols <- rep("gray", length(pc$sdev)); pt.cols[1:npc] <- "darkgreen"
-    rel.var <- round((spca@variances)/sum((spca@variances)), digits = 3)
-    plot(1:(2*npc), rel.var[1:(2*npc)], col = pt.cols, mgp = c(3,1,0), ylim = c(0, 1.2*rel.var[1]), 
-         ylab = "proportion variance explained", pch = 19,
-         main = "screeplot", xlab = "PC", 
-         sub = paste("green points represent PCs used, * (if present) indicates PCSs with response to factor(s)"), 
-         cex.lab = 1, cex.sub = 0.5, type = "b")
-    if(any(sig.pcs)) {
-      points((1:npc)[which(sig.pcs)], (rel.var + (rel.var[1]/20))[which(sig.pcs)], 
-             pch = "*", cex = 1)
+           cex.sub = 0.5)
+      # cat("after plotting", '\n')
+      abline(h = npc, col = "blue", lty = 3, lwd = 2)
+      # cat("after abline", '\n')
+      legend(x = "topright", legend = if(force.npc) {
+        paste0("Orig npc = ",orig.npc, "; Forced npc = ", npc)
+      } else {
+        paste("npc =", npc)
+      }, bty = "n")
+      # cat("after legend", '\n')
+      pt.cols <- rep("gray", length(pc$sdev)); pt.cols[1:npc] <- "darkgreen"
+      rel.var <- round((spca@variances)/sum((spca@variances)), digits = 3)
+      plot(1:(2*npc), rel.var[1:(2*npc)], col = pt.cols, mgp = c(3,1,0), ylim = c(0, 1.2*rel.var[1]), 
+           ylab = "proportion variance explained", pch = 19,
+           main = "screeplot", xlab = "PC", 
+           sub = paste("green points represent PCs used, * (if present) indicates PCSs with response to factor(s)"), 
+           cex.lab = 1, cex.sub = 0.5, type = "b")
+      if(any(sig.pcs)) {
+        points((1:npc)[which(sig.pcs)], (rel.var + (rel.var[1]/20))[which(sig.pcs)], 
+               pch = "*", cex = 1)
+      }
+      
     }
     
-  }
-  
+    }
+    
   par(mfrow = c(1,1))
   xy <- combn(x = which(plot.pcs),  2)
   
