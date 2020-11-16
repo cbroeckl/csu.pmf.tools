@@ -13,6 +13,7 @@ pmfpca(
   num.factors = NULL,
   label.by = "cmpd",
   npc = "auto",
+  ag.summary.plot = FALSE,
   filter = FALSE
 )
 }

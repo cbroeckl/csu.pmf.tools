@@ -31,7 +31,7 @@ pmfpca<-function(ramclustObj=RC,
                  num.factors = NULL,
                  label.by = "cmpd", 
                  npc = "auto",
-                 ag.summary.plot = TRUE,
+                 ag.summary.plot = FALSE,
                  filter = FALSE) {
   
   require(ggplot2)
