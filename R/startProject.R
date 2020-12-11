@@ -605,7 +605,7 @@ startProject<-function (
     }
     
   }
-
+  
   # nb <- ceiling(nrow(smp)/prep.batch.size)
   
   
@@ -632,7 +632,7 @@ startProject<-function (
   ## add fnames to ExpVars
   ExpVars <- c(ExpVars, fnames)
   
-
+  
   
   ## adjust prep.batch.size and run.batch.size for blanks
   ## and QC samples.  Assign within-batch QC positions.
@@ -656,27 +656,29 @@ startProject<-function (
   nb <- max(smp[,"prep_batch"])
   for(i in nb:1) {
     b <- which(smp[,"prep_batch"] == i)
-    if((length(b)/prep.blanks) > 3) {
-      ins.rows <- round(quantile(b, seq(0, 1, 1/(prep.blanks))))
-      ins.rows <- sapply(1:(length(ins.rows)-1), 
-                         FUN = function(x) {round(mean(ins.rows[x:(x+1)]))})
-      for(j in length(ins.rows):1) {
-        pbline$prep_batch <- i
-        smp <- rbind(
-          smp[1:(ins.rows[j]-1),],
-          pbline,
-          smp[ins.rows[j]:nrow(smp),]
-        )
-      }
-    } else {
-      ins.rows <- round(mean(b))
-      for(j in length(ins.rows):1) {
-        pbline$prep_batch <- i
-        smp <- rbind(
-          smp[1:(ins.rows[j]-1),],
-          pbline,
-          smp[ins.rows[j]:nrow(smp),]
-        )
+    if(prep.blanks > 0) {
+      if((length(b)/prep.blanks) > 3) {
+        ins.rows <- round(quantile(b, seq(0, 1, 1/(prep.blanks))))
+        ins.rows <- sapply(1:(length(ins.rows)-1), 
+                           FUN = function(x) {round(mean(ins.rows[x:(x+1)]))})
+        for(j in length(ins.rows):1) {
+          pbline$prep_batch <- i
+          smp <- rbind(
+            smp[1:(ins.rows[j]-1),],
+            pbline,
+            smp[ins.rows[j]:nrow(smp),]
+          )
+        }
+      } else {
+        ins.rows <- round(mean(b))
+        for(j in length(ins.rows):1) {
+          pbline$prep_batch <- i
+          smp <- rbind(
+            smp[1:(ins.rows[j]-1),],
+            pbline,
+            smp[ins.rows[j]:nrow(smp),]
+          )
+        }
       }
     }
     
@@ -699,7 +701,7 @@ startProject<-function (
   qcline[1,1:ncol(qcline)] <- "QC"
   
   ## randomize run order for samples, then
-
+  
   run.order <- sample(1:nrow(smp), replace = FALSE)
   smp <- smp[run.order,]
   
