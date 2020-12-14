@@ -23,10 +23,10 @@ startProject<-function (
   randomize=TRUE,
   stack = FALSE,
   prep.blanks = 3,
-  LTR = 2,
-  solvent.blanks = 2,
-  destination.dir = "R:/RSTOR-PMF/Projects/",
-  sub.project.name = 'urine'  ## add optional subproject.name
+  LTR = 1,
+  solvent.blanks = 0,
+  destination.dir = "R:/RSTOR-PMF/Projects/", # 
+  sub.project.name = NULL  ## add optional subproject.name
 ) {
   
   ## NEED TO ADD BATCH ORDER RANDOMIZATION
@@ -537,7 +537,7 @@ startProject<-function (
   
   answer <- "t"
   while(answer == "t") {
-    smp<-read.xlsx(submissionform, sheetName = "SampleList", 
+    smp<-xlsx::read.xlsx(submissionform, sheetName = "SampleList", 
                    startRow=4, header=TRUE, check.names = FALSE, 
                    stringsAsFactors=FALSE)
     #cat(" Reading and checking sample submission form: ", '\n', '\n')
@@ -798,6 +798,7 @@ startProject<-function (
       for(i in run.batches) {
         solvent.blank.line[1,"run_batch"] <- i
         keep <- which(tmp$run_batch == i)
+        if(length(keep) == 0) stop("no batches match, it appears.", '\n')
         pre <- min(keep)-1
         post <- max(keep) + 1
         sub <- tmp[keep, ]
