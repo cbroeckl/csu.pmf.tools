@@ -6,13 +6,11 @@
 #' @param QC  integer - every 'QC' injections will be a QC sample.  Default = 6  
 #' @param stack should the injection sample list be set up for stacked injections (TOF platforms only, currenly)
 #' @param prep.blanks integer - how many extraction blanks per prep batch? prep.blanks will be inserted into the prep sequence in random sequence position(s). 
-#' @param LTR even integer - how many long term reference material (LTR) vials per batch? default = 2.  LTR samples will be inserted at the start and end of each batch.
-#' @param solvent.blanks even integer - how many solvent blank vials  per batch? default = 0. solvent blanks will be inserted at the start and end of each batch.
+#' @param LTR  integer - how many long term reference material (LTR) vials per batch? default = 0.  LTR samples will be inserted at the start of each batch, and a solvent blank will ALwAYs be inserted after the LTR.
+#' @param solvent.blanks integer - how many ADDITIONAL solvent blank vials  per batch? default = 0. solvent blanks will include one for each LTR automatically. Any additional solvent blanks specified here will be inserted randomly in each batch.
 #' @param destination.dir valid path to directory target output directory, by default: "R:/RSTOR-PMF/Projects/"
 #' @return returns nothing, files written to directory selected by user.
 #' @author Corey Broeckling
-#' @examples 
-#' startProject<-function (prep.batch.size = 48,run.batch.size=96, QC=6, randomize=TRUE, stack = FALSE, prep.blanks = 3, LTR = 3)
 #' @export 
 
 
@@ -39,15 +37,11 @@ startProject<-function (
   
   #  do some checks to ensure we have integer values and even numbers, when appropriate. 
   LTR <- round(LTR)
-  if(LTR/2 != round(LTR/2)) {
-    LTR <- LTR + 1
-    warning(paste('set LTR equal to', LTR, 'to ensure the same number of LTR samples at start and end of batch.', '\n'))
-  }
   
   solvent.blanks <- round(solvent.blanks)
-  if(solvent.blanks/2 != round(solvent.blanks/2)) {
-    solvent.blanks <- solvent.blanks + 1
-    warning(paste('set solvent.blanks equal to', solvent.blanks, 'to ensure the same number of solvent.blank samples at start and end of batch.', '\n'))
+  if(solvent.blanks < LTR) {
+    solvent.blanks <- LTR
+    warning(paste('  -  set solvent.blanks equal to', solvent.blanks, 'to ensure a solvent blank is injected after each LTR.', '\n'))
   }
   redo = FALSE 
   
@@ -93,8 +87,15 @@ startProject<-function (
     
   }
   
+  ##############
+  ##############
+  ##############
+  ##############
+  ##############
+  
   projdir<-paste0(destination.dir, d["Service id:",], "/")
   dir.create(projdir)
+  
   
   ## if subproject name is selected, modify projdir
   if(!is.null(sub.project.name)) {
@@ -538,8 +539,9 @@ startProject<-function (
   answer <- "t"
   while(answer == "t") {
     smp<-xlsx::read.xlsx(submissionform, sheetName = "SampleList", 
-                   startRow=4, header=TRUE, check.names = FALSE, 
-                   stringsAsFactors=FALSE)
+                         startRow=4, header=TRUE, check.names = FALSE, 
+                         stringsAsFactors=FALSE)
+    orig.smp <- smp
     #cat(" Reading and checking sample submission form: ", '\n', '\n')
     cat ("PLEASE CHECK TO ENSURE FACTOR NAMES ARE ALL CORRECT: ", "\n", '\n')
     
@@ -589,7 +591,12 @@ startProject<-function (
     
     for (i in 1:ncol(smp)) {
       cat(names(smp)[i], '\n')
-      cat("  levels:", unique(smp[,i]), '\n', '\n')
+      unique.levels <- unique(smp[,i])
+      cat("  levels:", if(
+        length(unique.levels) < (0.9*length(smp[,i]))
+      ) {
+        unique.levels} else { "unique value for each sample"
+        }, '\n', '\n')
     }
     
     cat ("PRESS [enter] IF CORRECT", '\n',
@@ -608,165 +615,144 @@ startProject<-function (
   
   # nb <- ceiling(nrow(smp)/prep.batch.size)
   
+  n.prep.batches <- ceiling(nrow(smp)/(prep.batch.size-prep.blanks))
+  prep_batch <- vector(length = 0, mode = "integer")
+  for(i in 1:n.prep.batches) {prep_batch <- c(prep_batch, rep(i, (prep.batch.size - prep.blanks)))}
+  prep_batch <- prep_batch[1:nrow(smp)]
   
-  ## assign random prep order, and empty batch column
   smp <- data.frame(
     # "pmf.sn" = 1:nrow(smp),  # removed, as prep_order serves as pmf.sn instead.
-    "prep_order" = sample(1:nrow(smp), replace = FALSE),
-    "prep_batch" = rep(NA, nrow(smp)),
+    "prep_order" = sample(1:prep.batch.size, nrow(smp), replace = TRUE),
+    "prep_batch" = prep_batch,
     "run_order" = rep(NA, nrow(smp)),
     "run_batch" = rep(NA, nrow(smp)),
     smp, stringsAsFactors = FALSE
   )
   
-  # prep.blank.row <- smp[1,]
-  # prep.blank.row[1,1:ncol(prep.blank.row)]<- "prep.blank"
-  # n.prep.blanks <- nb*prep.blanks
-  # if(ceiling(nrow(smp)/prep.batch.size) > nb)
-  
-  # create factor labels and names based on smp input
-  flabs <- c(paste0("fact", 1:ncol(smp), "name"))
-  fnames <- names(smp)
-  names(fnames) <- flabs
-  
-  ## add fnames to ExpVars
-  ExpVars <- c(ExpVars, fnames)
-  
-  
-  
-  ## adjust prep.batch.size and run.batch.size for blanks
-  ## and QC samples.  Assign within-batch QC positions.
-  prep.batch.size <- prep.batch.size - prep.blanks
-  qc.per.batch <- floor(run.batch.size / (QC+1)) + 1
-  1:(qc.per.batch-2) * run.batch.size/(qc.per.batch-1)
-  qc.positions <- c(
-    1,   
-    round(1:(qc.per.batch-2) * run.batch.size/(qc.per.batch-1)), 
-    run.batch.size)
-  run.batch.size.full <- run.batch.size
-  run.batch.size <- run.batch.size - solvent.blanks - qc.per.batch - LTR
-  
-  ## reorder 
-  smp <- smp[order(smp$prep_order),]
-  
-  ## assign prep batch and insert prep blank lines
-  smp[,"prep_batch"] <- 1 + floor((smp$prep_order-1)/prep.batch.size)
-  pbline <- smp[1,]
-  pbline[1,1:ncol(pbline)] <- "prep.blank"
-  nb <- max(smp[,"prep_batch"])
-  for(i in nb:1) {
-    b <- which(smp[,"prep_batch"] == i)
-    if(prep.blanks > 0) {
-      if((length(b)/prep.blanks) > 3) {
-        ins.rows <- round(quantile(b, seq(0, 1, 1/(prep.blanks))))
-        ins.rows <- sapply(1:(length(ins.rows)-1), 
-                           FUN = function(x) {round(mean(ins.rows[x:(x+1)]))})
-        for(j in length(ins.rows):1) {
-          pbline$prep_batch <- i
-          smp <- rbind(
-            smp[1:(ins.rows[j]-1),],
-            pbline,
-            smp[ins.rows[j]:nrow(smp),]
-          )
-        }
-      } else {
-        ins.rows <- round(mean(b))
-        for(j in length(ins.rows):1) {
-          pbline$prep_batch <- i
-          smp <- rbind(
-            smp[1:(ins.rows[j]-1),],
-            pbline,
-            smp[ins.rows[j]:nrow(smp),]
-          )
-        }
-      }
+  for(i in 1:n.prep.batches) {
+    prep.blank.rows <- smp[0,,drop = TRUE]
+    prep.blank.rows[1,] <- "prep.blank"
+    prep.blank.rows$prep_batch[1] <- i
+    prep.blank.rows$prep_order[1] <- sample(1:prep.batch.size, 1)
+    for(j in 1:prep.blanks) {
+      smp <- rbind(smp, prep.blank.rows)
     }
-    
   }
   
-  # ## replace prep.blank with vial numbers for prep
-  # tmp <- which(smp$prep_order == "prep.blank")
-  # smp$prep_order[tmp] <- 0
-  # smp$prep_order <- as.integer(as.numeric(smp$prep_order))
-  # smp$prep_order[tmp] <- (max(smp$prep_order)+1):(max(smp$prep_order)+length(tmp))
-  # 
-  ## update prep order
-  ##########################
-  smp$prep_order <- 1:nrow(smp)
-  
-  ## write prep instructional .csv
+  ## write prep instructional .csv  
+  smp <- smp[order(smp$prep_batch),]
+  smp <- smp[order(smp$prep_order),]
   write.csv(smp[,-grep("run_", names(smp))], file = "prep.sample.list.csv", row.names = FALSE)
   
-  qcline <- smp[1,]
-  qcline[1,1:ncol(qcline)] <- "QC"
-  
-  ## randomize run order for samples, then
-  
-  run.order <- sample(1:nrow(smp), replace = FALSE)
-  smp <- smp[run.order,]
-  
-  ## expand qc.positions 
-  tmp <- qc.positions
-  while(max(qc.positions) < (3*nrow(smp))) {
-    qc.positions <- c(qc.positions, (max(qc.positions) + tmp))
-  }
-  
-  ## assign rows to be QC samples. 
-  
-  current.row <- 1
-  while(current.row < nrow(smp)) {
-    if(current.row %in% qc.positions) {
-      
-      if(current.row == 1) {
-        head.lines <- 0
-      } else {
-        head.lines <- 1:(current.row - 1)
-      }
-      if(current.row == nrow(smp)) {
-        tail.lines <- 0
-      } else {
-        tail.lines <- current.row:nrow(smp)
-      }
-      
-      smp <- rbind(smp[head.lines,], qcline, smp[tail.lines,])
-      cat(current.row, " ")
-    }
-    current.row <- current.row + 1
-  }
-  
-  if(smp[nrow(smp),1] != "QC") {
-    smp <- rbind(smp, qcline)
-  }
-  
-  ## assign run batch 
-  smp[,"run_batch"] <- 1 + floor(((1:nrow(smp))-1)/run.batch.size.full)
-  
-  ## update run order: 
-  smp$run_order <- 1:nrow(smp)
+  smp.backup <- smp
   
   projname<-d["Service id:",1]
   tmp<-unlist(strsplit(projname, "-"))
   short.projectname <- paste(tmp[length(tmp)-1], tmp[length(tmp)], sep = "-")
+  rm(tmp)
   
   ## copy submissionform file to project directory
-  file.copy(from=submissionform, to=paste0(projdir,  projname, ".", tools::file_ext(submissionform)))
+  file.copy(from=submissionform, to=paste0(projdir,  ".", basename(submissionform)))
   
   ## which platforms are we using? 
   doplatforms<-which(platforms[,2])
   
   ## for each platform
-  for(i in doplatforms) {
+  for(x in doplatforms) {
+    
     setwd(projdir)
+    platform.dir <- paste0(projdir, platforms[x,1], "/")
+    dir.create(platform.dir)
+    setwd(platform.dir)
+    
+    smp <- smp.backup
+    
+    
+    ## randomize for run order
+    smp <- smp[sample(1:nrow(smp), replace = FALSE),]
+    
+    ## build sequence for output
+    out <- smp[0,, drop = TRUE]
+    ltr <- out
+    ltr[1,] <- "ltr"
+    solvent.blank <- out
+    solvent.blank[1,] <- 'solvent.blank'
+    prep.blank <- out
+    prep.blank[1,] <- "prep.blank"
+    qc <- out
+    qc[1,] <- "qc"
+    
+    if(LTR > 0) {
+      for(i in 1:LTR) {
+        out <- rbind(out, ltr, solvent.blank)
+      }
+    }
+    
+    
+    on.row <- nrow(out)
+    qc.rows <- seq(on.row+1, run.batch.size, QC)
+    if(max(qc.rows) < run.batch.size) qc.rows <- c(qc.rows, run.batch.size)
+    too.close <- run.batch.size - qc.rows
+    too.close <- which(too.close > 0 & too.close < 3)
+    if(length(too.close) > 0) {
+      qc.rows <- qc.rows[-too.close]
+    }
+    out[qc.rows,] <- qc
+    
+    smp.backup <- smp
+    out.batch <- out
+    out.template <- out.batch
+    out <- out[0, , drop = FALSE]
+    available.rows <- which(is.na(out.template[,1]))
+    n.batches <- ceiling(nrow(smp)/(length(available.rows)-solvent.blanks))
+    for(i in 1:n.batches) {
+      out.batch <- out.template
+      available.rows <- which(is.na(out.batch[,1]))
+      sb.lines <- sample(available.rows, solvent.blanks)
+      out.batch[sb.lines,] <- solvent.blank
+      available.rows <- which(is.na(out.batch[,1]))
+      remaining.samples <- min(nrow(smp), length(available.rows))
+      out.batch[available.rows[1:remaining.samples],] <- smp[1:remaining.samples,]
+      smp <- smp[-(1:remaining.samples),]
+      if(i ==1) {from.order <- 1} else {from.order <- max(out$run_order)+1}
+      out.batch$run_order <- from.order:(from.order+run.batch.size-1)
+      out.batch$run_batch <- i
+      out <- rbind(out, out.batch)
+    }
+    
+    if(any(is.na(out[,1]))) {
+      out <- out[-(which(is.na(out[,1]))[1]:nrow(out)),]
+      if(out[nrow(out),1] != "qc") {
+        out <- rbind(out, qc)
+        out[nrow(out),"run_order"] <- 1+ as.numeric(out[nrow(out)-1,"run_order"])
+        out[nrow(out),"run_batch"] <- out[nrow(out),"run_batch"]
+      }
+    }
+    
+    
+    
+    for(i in 1:n.prep.batches) {
+      do <- which(smp$prep_batch == i)
+      smp$prep_order[do] <- 1:length(do)
+    }
+    
+    # create factor labels and names based on smp input
+    flabs <- c(paste0("fact", 1:ncol(smp), "name"))
+    fnames <- names(smp)
+    names(fnames) <- flabs
+    
+    ## add fnames to ExpVars
+    ExpVars <- c(ExpVars, fnames)
     
     ## edit instrument parameters, if need be
     Exp<-ExpVars
-    Exp["platform"]<-as.character(platforms[i,"platforms"])
+    Exp["platform"]<-as.character(platforms[x,"platforms"])
     Experiment<-data.frame(Exp,stringsAsFactors=FALSE)
     cat("  Please edit instrument parameters as approriate: ", Exp["platform"], '\n')
     if(!is.null(paramsets[[as.character(Exp["platform"])]])) {
       instrument<-edit(paramsets[[as.character(Exp["platform"])]])
     } else {
-      cat ("PLATFORM", as.character(platforms[i,"platforms"]) , ": TYPE 'g' FOR NEW GC-MS PLATFORM AND 'l' FOR NEW LC-MS PLATFORM", '\n')
+      cat ("PLATFORM", as.character(platforms[x,"platforms"]) , ": TYPE 'g' FOR NEW GC-MS PLATFORM AND 'l' FOR NEW LC-MS PLATFORM", '\n')
       answer <- readline()
       if(grepl('g', answer)) {
         instrument<-edit(paramsets[['newGC']])
@@ -778,161 +764,88 @@ startProject<-function (
     #create ExpDes object for saving to disk and using in RAMClustR processing
     ExpDes<-list(Experiment, instrument)
     names(ExpDes)<-c("design", "instrument")
-    dir.create(platforms[i,1])
-    setwd(platforms[i,1])
+    # dir.create(platforms[x,1])
+    # setwd(platforms[x,1])
     save(ExpDes, file="ExpDes.Rdata")
     dir.create("R_scripts")
     
-    tmp <- smp
     
-    ## randomize run order for all non-QC samples
-    reord <- sample(which(tmp[,"prep_order"] != "QC"), replace = FALSE)
-    tmp[which(tmp[,"prep_order"] != "QC"),] <- tmp[reord,]
-    
-    run.batches <- unique(tmp$run_batch)
-    ## if we are using solvent blank and/or LTR samples, add to front of each batch
-    if(solvent.blanks > 0) {
-      solvent.blank.line <- tmp[1,,]
-      solvent.blank.line[1,1:ncol(solvent.blank.line)] <- "solvent.blank"
-      
-      for(i in run.batches) {
-        solvent.blank.line[1,"run_batch"] <- i
-        keep <- which(tmp$run_batch == i)
-        if(length(keep) == 0) stop("no batches match, it appears.", '\n')
-        pre <- min(keep)-1
-        post <- max(keep) + 1
-        sub <- tmp[keep, ]
-        for(i in 1:(LTR/2)) {
-          sub <- rbind(solvent.blank.line, sub)
-        }
-        if(pre > 0) {
-          tmp2 <- rbind(tmp[1:pre,,], sub)
-        } else {
-          tmp2 <- sub
-        }
-        if(post < nrow(tmp)) {
-          tmp2 <- rbind(sub, tmp[post:nrow(tmp),,])
-        }
-        tmp <- tmp2
-      }
-    }
-    
-    if(LTR > 0) {
-      ltrline <- tmp[1,,]
-      ltrline[1,1:ncol(ltrline)] <- "LTR"
-      
-      run.batches <- unique(tmp$run_batch)
-      for(i in run.batches) {
-        ltrline[1,"run_batch"] <- i
-        keep <- which(tmp$run_batch == i)
-        pre <- min(keep)-1
-        post <- max(keep) + 1
-        sub <- tmp[which(tmp$run_batch == i), ]
-        for(i in 1:(LTR/2)) {
-          sub <- rbind(ltrline, sub)
-        }
-        if(pre > 0) {
-          tmp2 <- rbind(tmp[1:pre,,], sub)
-        } else {
-          tmp2 <- sub
-        }
-        if(post < nrow(tmp)) {
-          tmp2 <- rbind(sub, tmp[post:nrow(tmp),,])
-        }
-        tmp <- tmp2
-      }
-    }
-    
-    ## if we are using solvent blank and/or LTR samples, add to end of each batch
-    if(LTR > 0) {
-      ltrline <- tmp[1,,]
-      ltrline[1,1:ncol(ltrline)] <- "LTR"
-      
-      run.batches <- unique(tmp$run_batch)
-      for(i in run.batches) {
-        ltrline[1,"run_batch"] <- i
-        keep <- which(tmp$run_batch == i)
-        pre <- min(keep)-1
-        post <- max(keep) + 1
-        sub <- tmp[which(tmp$run_batch == i), ]
-        for(i in 1:(LTR/2)) {
-          sub <- rbind(sub, ltrline)
-        }
-        if(pre > 0) {
-          tmp2 <- rbind(tmp[1:pre,,], sub)
-        } else {
-          tmp2 <- sub
-        }
-        if(post < nrow(tmp)) {
-          tmp2 <- rbind(sub, tmp[post:nrow(tmp),,])
-        }
-        tmp <- tmp2
-      }
-    }
-    
-    if(solvent.blanks > 0) {
-      solvent.blank.line <- tmp[1,,]
-      solvent.blank.line[1,1:ncol(solvent.blank.line)] <- "solvent.blank"
-      
-      run.batches <- unique(tmp$run_batch)
-      for(i in run.batches) {
-        solvent.blank.line[1,"run_batch"] <- i
-        keep <- which(tmp$run_batch == i)
-        pre <- min(keep)-1
-        post <- max(keep) + 1
-        sub <- tmp[which(tmp$run_batch == i), ]
-        for(i in 1:(LTR/2)) {
-          sub <- rbind(sub, solvent.blank.line)
-        }
-        if(pre > 0) {
-          tmp2 <- rbind(tmp[1:pre,,], sub)
-        } else {
-          tmp2 <- sub
-        }
-        if(post < nrow(tmp)) {
-          tmp2 <- rbind(sub, tmp[post:nrow(tmp),,])
-        }
-        tmp <- tmp2
-      }
-    }
-    
-    ## update run order
-    tmp[,"run_order"] <- 1:nrow(tmp)
-    
+    # run.batches <- sort(unique(smp$run_batch))
+    # # cat('run.batches:', run.batches , '\n')
+    # 
+    # if(LTR > 0)  {
+    #   ltr.line <- smp[1,,drop = FALSE]
+    #   ltr.line[1,1:ncol(ltr.line)] <- "LTR"
+    #   sb.line <- smp[1,,drop = FALSE]
+    #   sb.line[1,1:ncol(sb.line)] <- "solvent.blank"
+    #   for(i in run.batches) {
+    #     for(j in 1:LTR) {
+    #       ltr.line$run_batch <- i
+    #       sb.line$run_batch <- i
+    #       ltr.line$run_order <- -2*j
+    #       sb.line$run_order <- -2*j + 1
+    #       smp <- rbind(smp, ltr.line, sb.line)
+    #     }
+    #   }
+    # }
+    # 
+    # 
+    # 
+    # if(solvent.blanks > 0) {
+    #   sb.line <- smp[1,,drop = FALSE]
+    #   sb.line[1,1:ncol(sb.line)] <- "solvent.blank"
+    #   
+    #   for(i in run.batches) {
+    #     sb.line$run_batch <- i
+    #     sb.line$run_order <- sample(which(smp$run_batch == i), 1)
+    #     smp <- rbind(smp, sb.line)
+    #   }
+    # }
+    # 
+    # 
+    # ## update run order
+    # smp <- smp[order(smp$run_batch),]
+    # for(i in run.batches) {
+    #   do <- which(smp$run_batch == i)
+    #   smp[do,] <- smp[do[order(smp[do, "run_order"])],]
+    #   smp[do,"run_order"] <- 1:length(do)
+    # }
+    # 
     ## replace QC, LTR, solvent blank in prep_order and prep_batch columns with NA
-    tmp[which(tmp$prep_order == "LTR"), "prep_order"] <- NA
-    tmp[which(tmp$prep_batch == "LTR"), "prep_batch"] <- NA
+    out[which(out$prep_order == "ltr"), "prep_order"] <- NA
+    out[which(out$prep_batch == "ltr"), "prep_batch"] <- NA
     
-    tmp[which(tmp$prep_order == "QC"), "prep_order"] <- NA
-    tmp[which(tmp$prep_batch == "QC"), "prep_batch"] <- NA
+    out[which(out$prep_order == "qc"), "prep_order"] <- NA
+    out[which(out$prep_batch == "qc"), "prep_batch"] <- NA
     
-    tmp[which(tmp$prep_order == "solvent.blank"), "prep_order"] <- NA
-    tmp[which(tmp$prep_batch == "solvent.blank"), "prep_batch"] <- NA
+    out[which(out$prep_order == "solvent.blank"), "prep_order"] <- NA
+    out[which(out$prep_batch == "solvent.blank"), "prep_batch"] <- NA
     
     ## create file and sample names for run .csv file
-    tmp <- data.frame(
-      "filename" = paste(platforms[i,1], short.projectname, formatC(1:nrow(tmp), width = nchar(nrow(tmp)), flag = 0), sep = "-"), 
-      "sample.name" = sapply(1:nrow(tmp), FUN = function(x) {paste(tmp[x, 1:ncol(tmp)], collapse = "-")}),
-      tmp
+    out <- data.frame(
+      "filename" = paste(platforms[x,1], short.projectname, formatC(1:nrow(out), width = nchar(nrow(out)), flag = 0), sep = "-"), 
+      "sample.name" = sapply(1:nrow(out), FUN = function(x) {paste(out[x, 1:ncol(out)], collapse = "-")}),
+      out
     )
     
     
-    if(stack & grepl("TOF_", Exp["platform"])) {
+    if(stack) {
       
-      tmpstack<-tmp
-      tmpstack$filename<-paste(tmpstack$filename, "_stack", sep="")
-      tmpinj<-tmp
-      tmp<-tmp[0,]
-      for(k in 1:nrow(tmpstack)) {
-        tmp<-rbind(tmp, tmpstack[k,], tmpinj[k,])
+      smpstack<-out
+      smpstack$filename<-paste(smpstack$filename, "_stack", sep="")
+      smpinj<-out
+      tmp<-out[0,]
+      for(k in 1:nrow(smpstack)) {
+        tmp<-rbind(tmp, smpstack[k,], smpinj[k,])
       }
+      out <- tmp
+      rm(tmp)
     }
     
-    write.csv(tmp, file="sequence.csv", row.names=FALSE)
+    write.csv(out, file="sequence.csv", row.names=FALSE)
     setwd(projdir)
   }
-  setwd(projdir)
+  
+  setwd(destination.dir)
   cat("FINISHED: created directories for the following platforms", platforms[doplatforms, 1], '\n')
 }
-
-# startProject
