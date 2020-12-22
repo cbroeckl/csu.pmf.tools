@@ -1,0 +1,400 @@
+---
+output: html_document
+title:  "XCMS Data Processing"
+---
+<img src= `r system.file("ARC.BIO_logoContact.png", package = "csu.pmf.tools")`  style="position:absolute;top; right:200px;height:100px;" /> 
+
+
+## Corey Broeckling
+## `r format(Sys.time(), "%b %d, %Y")` 
+## 
+******
+******
+
+```{r LoadPackages, include = FALSE, message = FALSE, warning = FALSE}
+library(xcms)
+library(csu.pmf.tools)
+library(RAMClustR)
+library(ggplot2)
+library(gridExtra)
+library(RefManageR)
+
+```
+`
+``` {r setup, cache = FALSE, message = FALSE, warning = FALSE, echo=FALSE}
+## use startProject to automatically edit this section of template .Rmd file. 
+wd <- ""
+redetect <- FALSE
+realign  <- FALSE
+
+rtrange    <- c(0, 10000)  ## retention time range to process, in seconds
+cores      <- 4            ## how many cores to use
+
+setwd(wd)
+require(knitr)
+opts_knit$set(root.dir = wd)
+
+bib <- ReadBib(system.file("references.txt", package = "RAMClustR"), check = FALSE)
+BibOptions(check.entries = FALSE, style = "markdown", bib.style = "numeric", cite.style = "numeric")
+
+```
+
+## XCMS: Overview
+
+XCMS `r Cite(bib, c(7,8), .opts = list(longnamesfirst = FALSE))` is utilized  for feature detection, alignment of features across samples, retention time correction, and peak filling to minimize missing values in the final dataset.   XCMS ultimately generates a feature matrix - for each feature and sample a quantitative signal intensity value is returned.  A 'feature' is defined as a signal intensity value represented by a specific mass/charge (m/z) and retention time (rt) for a given sample. Features are aligned across samples to generate a feature group.     
+
+```{r ParseSequence, message = FALSE, warning = FALSE, echo = FALSE}
+
+filetype = ".cdf"
+
+dir.create("datasets")
+dataset<-list.files(
+  knitr::opts_knit$get('root.dir'), 
+  pattern=filetype, recursive = FALSE, 
+  ignore.case=TRUE, full.names = FALSE
+)
+
+if(length(dataset) == 0) {
+  stop("no .ms1 data files found")
+}
+seq.file <- paste0(knitr::opts_knit$get('root.dir'), "/", 'seq.csv')
+seq <- read.csv(seq.file, header = TRUE, check.names = FALSE)
+
+r <- sapply(1:ncol(seq), FUN = function(x) {
+  tmp <- which(is.na(seq[,x]))
+  length(tmp)
+})
+
+r <- which(r == dim(seq)[[1]])
+
+if(length(r) > 0) {
+  seq <- seq[,-r]
+}
+
+if(ncol(seq) < 2) {
+  stop("sequence must contain at least two columns", '\n')
+}
+
+for(i in 1:ncol(seq)) {
+  seq[,i] <- trimws(seq[,i])
+}
+
+## ensure all files are present
+files <- paste0(seq[,1], filetype)
+
+missing <- which(!files %in% dataset)
+if(length(missing)>0) {
+  cat("missing files include: ", '\n')
+  for(i in 1:length(missing)) {
+    cat("  ", files[missing[i]], '\n')
+  }
+  stop("please correct missing file issue by either changing the sequence file or the filetype option", '\n')
+}
+
+## if factors are provided in multiple columns, concatenate to single sample names
+if(ncol(seq) == 2) {
+  sample.names <- seq[,2]
+  factor.names <- names(seq)[2]
+} else {
+  sample.names <- sapply(1:nrow(seq), FUN = function(x) {
+    paste0(seq[x, 2:ncol(seq)], collapse = delim)
+  })
+  factor.names <- paste0(names(seq)[2:ncol(seq)], collapse = delim)
+}
+
+## define sample types for xcms grouping, filtering, and display
+sample.type <- rep("sample", length(sample.names))
+is.qc <- grep("QC", sample.names, ignore.case = TRUE)
+if(length(is.qc)>0) {sample.type[is.qc] <- "qc"}
+is.blank <- grep("blank", sample.names, ignore.case = TRUE)
+if(length(is.blank)>0) {sample.type[is.blank] <- "blank"}
+
+sample.type <- as.factor(sample.type)
+pheno.data <- data.frame(sn = sample.names, class = sample.type)
+
+```
+
+
+```{r defineExperiment, echo = FALSE, message = FALSE, warning = FALSE, cache = FALSE}
+load("datasets/ExpDes.Rdata")
+```
+
+```{r CheckSequence, echo = FALSE, message = FALSE, warning = FALSE, cache = TRUE}
+# dir.create("datasets")
+if(file.exists("datasets/raw.Rdata") & !redetect) {
+  load("datasets/raw.Rdata")
+} else {
+  raw_data <- readMSData(files = files, 
+                         pdata = new("NAnnotatedDataFrame", pheno.data),
+                         mode = "onDisk"
+  )
+  raw_data <- filterRt(raw_data, rtrange)
+  save(raw_data, file = "datasets/raw.Rdata")
+}
+
+```
+
+## Raw Data Visualization and Quality Assessment  
+
+The plot below depicts the base peak ion chromatogram for all samples.  These data reflect the signal intensity as a function of retention time, a simplified (2-dimensional) version of the full dataset, which is three dimensional (m/z axis is not shown in this plot).  
+
+``` {r examineBPCs, echo = FALSE, message = FALSE, warning = FALSE, fig.show="hold", fig.show="hold"}
+if(file.exists("datasets/bpis.Rdata") & !redetect) {
+  load("datasets/bpis.Rdata")
+} else {
+  bpis <- chromatogram(raw_data, aggregationFun = "max")
+  save(bpis, file = "datasets/bpis.Rdata")
+}
+
+
+plot(bpis, col = pheno.data$class, main = "base peak ion chromatograms", bty = "L", 
+     ylab = "signal intensity (AU)", xlab = "retention time (sec)")
+legend(x = "topright", bty = "n", text.col = c(1:length(levels(pheno.data$class))), legend = levels(pheno.data$class))
+```
+
+The base peak ion chromatograms (BPIC) plotted above were used to detect outliers - a dramatically different chromatogram would indicate that a sample is dramatically different and will negatively impact downstream processing.  We utilize the median correlational value for each sample to each other sample to perform this filtering - samples with BPICs sufficiently low median r values when compared to all other samples indicate a dramatic difference in the composition of that sample. Likewise, samples with dramatically differing signal intensity can inform on data quality. Outliers in these distributions generally reflect either a poor sample or poor injection, and are removed before further processing. Only samples which demonstrate values greater than three standard deviations from the median in _both_ of these metrics are considered outliers, and are removed.  Any points in red below have been removed based on these objective criteria. 
+
+``` {r findBPCoutliers, echo = FALSE, message = FALSE, warning = FALSE, fig.show="hold"}
+## Bin the BPC
+bpis_bin <- bin(bpis, binSize = 10)
+
+## Calculate correlation on the log2 transformed base peak intensities
+cormat <- cor(log2(do.call(cbind, lapply(bpis_bin, intensity))))
+colnames(cormat) <- rownames(cormat) <- raw_data$sample_name
+
+mcor <- apply(cormat, 1, "median")
+rcut <- min(0.7, median(mcor) - (3*sd(mcor)))
+
+tc <- split(tic(raw_data), f = fromFile(raw_data))
+total.signal <- sapply(1:length(tc), FUN = function(x) sum(tc[[x]]))
+use <-   pheno.data$class %in% c("sample", "qc")
+
+ts.cut <- c(median(total.signal[use])-(3*sd(total.signal[use])),
+            median(total.signal[use])+(3*sd(total.signal[use])))
+
+
+remove.samples <- which(mcor < rcut & 
+                          (total.signal < ts.cut[1] | total.signal > ts.cut[2]) &
+                          (!grepl("blank", bpis@phenoData@data[,1], ignore.case = TRUE))
+                        )
+
+pt.colors <- rep(1, length(total.signal)); pt.colors[remove.samples] <- 2
+
+d1 <- data.frame('median.cor' = mcor, 'group' = pheno.data$class, 'out' = pt.colors)
+p1 <- ggplot(d1, aes(x=group, y=median.cor)) + 
+  ylim(0,1) +
+  geom_violin(trim=FALSE) +
+  geom_dotplot(aes(fill = factor(out)), binaxis='y', 
+               stackdir='center', dotsize=0.75, binwidth = max(mcor)/100) +
+  geom_hline(yintercept = rcut, color = "red") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values=c("black", "red"))
+
+d2 <- data.frame('total.signal' = total.signal, 'group' = pheno.data$class, 'out' = pt.colors)
+p2 <- ggplot(d2, aes(x=group, y=total.signal)) + 
+  geom_violin(trim=FALSE) +
+  geom_dotplot(aes(fill = factor(out)), binaxis='y', 
+               stackdir='center', dotsize=0.75, binwidth = max(total.signal)/100) +
+  geom_hline(yintercept = ts.cut[1], color = "red") +
+  geom_hline(yintercept = ts.cut[2], color = "red") +
+  theme(legend.position = "none")+ 
+  scale_fill_manual(values=c("black", "red"))
+
+grid.arrange(p1, p2, nrow = 1)
+```
+
+``` {r filterOutliers, results = 'markup', echo = FALSE, inlcude = TRUE}
+
+if(length(remove.samples) > 1) {
+  keep <- (1:nrow(pheno.data))[-remove.samples]
+  raw_data <- readMSData(files = files[keep], 
+                         pdata = new("NAnnotatedDataFrame", pheno.data[keep,]),
+                         mode = "onDisk"
+  )
+  raw_data <- filterRt(raw_data, rtrange)
+  cat("Samples removed:", '\n')
+  print(pheno.data[which(mcor < rcut),])
+  redetect <- TRUE
+}
+
+
+
+```
+
+
+
+```{r SetXCMSParams, message = FALSE, cache = FALSE, echo = FALSE}
+
+msamp <- floor(min(table(pheno.data$class))/nrow(pheno.data))
+register(bpstart(SnowParam(cores)))
+
+## XCMS peak detection parameters: matchedFilter
+mpp <- MatchedFilterParam(
+  binSize = 0.2,
+  impute = "none",
+  fwhm = 3,
+  sigma = 1.3,
+  max = 5,
+  snthresh = 5,
+  steps = 2,
+  mzdiff = 0.2,
+  index = FALSE
+)
+
+### XCMS feature grouping, pre-RT correction
+minFraction <- 0.7
+# minSamples <-  minFraction*msamp
+pdp <- PeakDensityParam(sampleGroups = pheno.data[,"class"], binSize = 0.2,
+                        minFraction = minFraction,  bw = 3)
+
+### XCMS retention time adjustment, peak density
+pgp <- PeakGroupsParam(
+  minFraction = minFraction
+)
+
+### XCMS feature grouping, post-RT correction
+minSamples <-  minFraction*msamp
+pdp2 <- PeakDensityParam(sampleGroups =pheno.data[,"class"], binSize = 0.2,
+                         minFraction = minFraction, bw = 1)
+### XCMS fillPeaks
+fpp <- FillChromPeaksParam(expandMz = 0, expandRt = 0, ppm = 0)
+
+
+```
+
+
+```{r PeakDetection, echo = FALSE, message = FALSE, warning = FALSE}
+if(file.exists("datasets/xcms.Rdata") & !redetect) {
+  load("datasets/xcms.Rdata")
+} else {
+  xset <- findChromPeaks(raw_data, param = mpp, msLevel = 1)
+  save(xset, file="datasets/xcms.Rdata")
+}
+
+
+```
+
+
+## Feature Summary Plots:
+Detected features (not feature groups) are summarized in the following histograms.  These summary plots reflect all of the signals (features) detected in all the samples, before grouping features across samples.  Features are described by their distribution in m/z, retention time, peakwidth, and signal intensity (log10 scaled).  These plots are provided as base level descriptions, and can be valuable in determining the performance of the analytical system.  
+
+```{r FeaturePlots, echo = FALSE, message = FALSE, warning = FALSE, cache = FALSE, fig.show="hold", out.width="50%"}
+p <- chromPeaks(xset)
+p <- data.frame(p, "peakwidth" =  (p[,"rtmax"] - p[,"rtmin"]))
+rt.range <- range(rtime(xset))
+restrict.rt <- (rtrange[1] > rt.range[1]) | (rtrange[2] < rt.range[2])
+col <- "#59595B"
+par(mar = c(4, 4, .1, .1))
+hist(p$mz, main = NULL, xlab = "mz", breaks = 50, col = col, border = col)
+hist(p$rt, main = NULL, xlab = "rt", breaks = 50, col = col, border = col)
+par(mar = c(4, 4, .1, .1))
+hist(p$peakwidth, main = NULL, xlab = "peakwidth", breaks = 50, col = col, border = col)
+hist(log10(p$into), main = NULL, xlab = "log10(area)", breaks = 50, col = col, border = col)
+
+```
+
+
+```{r PeakAlignment, echo = FALSE, message = FALSE, warning = FALSE, cache = FALSE}
+
+if(file.exists("datasets/xcms2.Rdata") & !realign) {
+  load("datasets/xcms2.Rdata")
+} else {
+  
+  ### XCMS feature grouping, pre-RT correction
+  xset2 <- groupChromPeaks(xset, param = pdp) 
+  xset2
+  save(xset2, file = "group.1.Rdata")
+  
+  ### XCMS retention time adjustment, peak density
+  xset2 <- adjustRtime(xset2, param = pgp) 
+  xset2
+  save(xset2, file = "rtcor.Rdata")
+  
+  ### XCMS feature grouping, post-RT correction
+  xset2 <- groupChromPeaks(xset2, param = pdp2) 
+  xset2
+  save(xset2, file = "group.2.Rdata")
+  
+  ### XCMS fillPeaks
+  xset2 <- fillChromPeaks(xset2, param = fpp)
+  save(xset2, file="datasets/xcms2.Rdata")
+}
+
+
+```
+
+## Feature Groups Summary Plots:
+Features groups are summarized in the following histograms.  These summary plots reflect individual features _after_ feature alignment, as such they represent signals detected across the full dataset.  Feature groups are summarized by (1) 'percent detected' - in what percentage of the samples was the feature detected in that feature group; (2) 'percent multiple' - what percentage of samples for the feature group is there more than one individual feature forced into a single feature group.  Generally speaking, we bias feature grouping toward high values for 'percent detected' and low values for 'percent multiple.   
+
+```{r featureGroupsPlots, echo = FALSE, message = FALSE, warning = FALSE, cache = FALSE, fig.show="hold", out.width="50%"}
+
+if(file.exists("datasets/featureSummary.Rdata") & !realign) {
+  load("datasets/featureSummary.Rdata")
+} else {
+  p <- featureSummary(xset2, method = "sum")
+  save(p, file = "datasets/featureSummary.Rdata")
+}
+
+par(mar = c(4, 4, .1, .1))
+hist(p[,"perc"], breaks = 50, main = NULL, xlab = "percent detected", col = col, border = col)
+hist(p[,"multi_perc"], breaks = 50, main = NULL, xlab = "percent multiple", col = col, border = col)
+
+```
+
+```{r MethodsNarrative, echo = FALSE, message = FALSE, warning = FALSE, cache = TRUE}
+steps <- length(xset2@.processHistory)
+methods.narrative <- ""
+avoid <- c("sampleGroups", ".__classVersion__", "index", "peakGroupsMatrix")
+for(i in 1:steps) {
+  param.names <- slotNames(xset2@.processHistory[[i]]@param)
+  param.names <- param.names[!(param.names %in% avoid)]
+  param.names <- param.names[1:(length(param.names)-2)]
+  param.values <- sapply(param.names, FUN = function(x) slot(xset2@.processHistory[[i]]@param, x))
+  param.text <- ""
+  for(j in 1:length(param.names)) {
+    param.text <- paste0(param.text, param.names[j], "=", param.values[j],
+                         if(j < length(param.names)) {", "} else ". ")
+  }
+  
+  methods.narrative <- paste(
+    methods.narrative,
+    xset2@.processHistory[[i]]@type,
+    "was perfomed using", 
+    gsub("Param", "", class(xset2@.processHistory[[i]]@param)[1]),
+    "with parameters set as:",
+    param.text,
+    sep = " "
+  )
+}
+
+
+
+fd <- chromPeakData(xset2)
+filled.percent <- round(100*length(which(fd@listData$is_filled))/length(fd@listData$is_filled), digits = 2)
+
+
+```  
+
+
+## Methods: 
+XCMS `r Cite(bib, c(7,8), .opts = list(longnamesfirst = FALSE))` (version `r packageVersion('xcms')`) processing was performed in `r  R.Version()$version.string`. `r if(restrict.rt) {paste("Features were filtered by retention time to include only those between", rtrange[1], "and", rtrange[2], "seconds. ")}` `r methods.narrative`  `r  dim(featureDefinitions(xset2))[2]` samples were processed, identifying `r  dim(featureDefinitions(xset2))[1]` features.  `r filled.percent`% of feature values have been filled.   
+
+
+## Citations:
+
+```{r bibliography, results = 'asis', echo = FALSE, message = FALSE, warning = FALSE}
+
+PrintBibliography(bib, .opts = list(check.entries = FALSE))
+```
+
+
+
+
+## R Session Information:
+
+```{r records, echo = FALSE}
+sessionInfo()
+
+```
+
+Data directory: `r getwd()`
