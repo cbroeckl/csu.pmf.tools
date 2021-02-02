@@ -18,7 +18,8 @@ pmfanova(
   pcut = 0.05,
   p.adj = "BH",
   which.quan = NULL,
-  filter = TRUE
+  filter = TRUE,
+  summary.statistics = TRUE
 )
 }
 \arguments{
@@ -47,6 +48,8 @@ pmfanova(
 \item{p.adj}{character; what p.adjust method should be used.  generally 'fdr' or 'bh' (equivalent). see ?p.adjust}
 
 \item{filter}{logical, TRUE by default. when $cmpd.use slot is present (from rc.cmpd.filter.cv function), only cmpds that passed cv filtering are used. If you wish to change that behavior, rerun the rc.cmpd.filter.cv function with a really high CV threshold.}
+
+\item{summary.statistics}{logical, TRUE by default.  If true, calculate mean and standard deviation for each level as defined by the anova.call model.}
 
 \item{which.quan;}{chracter vector.  which factors should be interpreted as quantitative?  i.e. c("time", "dose")}
 }

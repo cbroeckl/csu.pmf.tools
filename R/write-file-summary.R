@@ -40,9 +40,10 @@ write.file.summary <- function() {
     c("pca/scores.csv", "PCA scores values for autoselected PCs for replotting on your own, if you wish."),
     c("anova_pvalues.csv", "CSV file containing p-values resulting from analysis of variance for each compound."),
     c("anova_summary.pdf", "PDF file containing summary plots for pvalues reported in .csv file."),
+    c("summary.statistics.csv", "mean and standard deviation for all metabolite levels based on utilized anova factors."),
     c("model_details.txt", "Text file with model summary in text format.  While not pleasant to navigate, it provides more details than a simple p-value."),
     c("models_r_objects.Rdata", "R object containing all model fit results from ANOVA results for each compound."),
-    
+
   stringsAsFactors = FALSE
   )
   

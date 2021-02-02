@@ -11,10 +11,10 @@ startProject(
   randomize = TRUE,
   stack = FALSE,
   prep.blanks = 3,
-  LTR = 2,
-  solvent.blanks = 2,
+  LTR = 1,
+  solvent.blanks = 0,
   destination.dir = "R:/RSTOR-PMF/Projects/",
-  sub.project.name = "urine"
+  sub.project.name = NULL
 )
 }
 \arguments{
@@ -28,9 +28,9 @@ startProject(
 
 \item{prep.blanks}{integer - how many extraction blanks per prep batch? prep.blanks will be inserted into the prep sequence in random sequence position(s).}
 
-\item{LTR}{even integer - how many long term reference material (LTR) vials per batch? default = 2.  LTR samples will be inserted at the start and end of each batch.}
+\item{LTR}{integer - how many long term reference material (LTR) vials per batch? default = 0.  LTR samples will be inserted at the start of each batch, and a solvent blank will ALwAYs be inserted after the LTR.}
 
-\item{solvent.blanks}{even integer - how many solvent blank vials  per batch? default = 0. solvent blanks will be inserted at the start and end of each batch.}
+\item{solvent.blanks}{integer - how many ADDITIONAL solvent blank vials  per batch? default = 0. solvent blanks will include one for each LTR automatically. Any additional solvent blanks specified here will be inserted randomly in each batch.}
 
 \item{destination.dir}{valid path to directory target output directory, by default: "R:/RSTOR-PMF/Projects/"}
 }
@@ -42,9 +42,6 @@ startProject
 }
 \details{
 take info from iLab and iLab sample submission form and create sample prep and data acquisition templates and directories on the R:
-}
-\examples{
-startProject<-function (prep.batch.size = 48,run.batch.size=96, QC=6, randomize=TRUE, stack = FALSE, prep.blanks = 3, LTR = 3)
 }
 \author{
 Corey Broeckling

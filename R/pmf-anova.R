@@ -17,6 +17,7 @@
 #' @param p.adj character; what p.adjust method should be used.  generally 'fdr' or 'bh' (equivalent). see ?p.adjust
 #' @param which.quan; chracter vector.  which factors should be interpreted as quantitative?  i.e. c("time", "dose")
 #' @param filter logical, TRUE by default. when $cmpd.use slot is present (from rc.cmpd.filter.cv function), only cmpds that passed cv filtering are used. If you wish to change that behavior, rerun the rc.cmpd.filter.cv function with a really high CV threshold. 
+#' @param summary.statistics logical, TRUE by default.  If true, calculate mean and standard deviation for each level as defined by the anova.call model.
 #' @return returns a ramclustR object.  new R object in $pca slot. Optionally, new R object in $AuerGervini slot if npc = "auto".
 #' @concept RAMClustR
 #' @author Corey Broeckling
@@ -37,13 +38,30 @@ pmfanova<-function(ramclustObj=RC,
                    pcut=0.05,
                    p.adj="BH",
                    which.quan=NULL,
-                   filter = TRUE
+                   filter = TRUE,
+                   summary.statistics = TRUE
 ) {
+  
+  # consider moving away from lsmeans and effects, keeping only emmeans dependency.
+  # lme4, lmerTest, pbkrtest needed? 
+  # 
+  # replace effects plots with emmeans plots
+  # d <- getData(ramclustObj = RC)
+  # dat <- cbind(d[[1]], d[[2]])
+  # m <- lm(C0001 ~ label*time, data = dat)
+  # anova.call <- "label*time"
+  # posthoc <- anova.call
+  # m <- lm(as.formula(paste("C0001", "~", anova.call)), data = dat)
+  # e <- emmeans(m, as.formula(paste("pairwise ~", posthoc)), data=dat)
+  # # emmip(noise.lm, type ~ size | side)
+  # emmip(m, label ~ time, data = dat)
+  
   require(effects)
   require(lme4)
   require(lmerTest)
   require(lsmeans)
   require(pbkrtest)
+  require(emmeans)
   
   if(!dir.exists("stats")) {
     dir.create('stats')
@@ -207,30 +225,42 @@ pmfanova<-function(ramclustObj=RC,
     )
     
   }
+  
+  ## pvalue correction: 
+  ## apply pvalue correction
+  for(i in 1:nrow(mp)) {
+    mp[i,] <- p.adjust(mp[i,], method=p.adj, n = (dim(mp)[1]*dim(mp)[2]))
+    ramclustObj$history$anova7 <- paste(
+      "P-value correction was performed using the p.adjust function with method set to", 
+      paste0(p.adj, ".")
+    )
+  }
+  
+  
   cat(out.dir, '\n')
   
-  sink(file = paste0(out.dir, "/model_details.txt"))
-  print(sessionInfo())
-  cat('\n', '\n')
+  out <- c("ANOVA MODEL DETAILS:  ", '\n')
+  out <- c(out, capture.output(sessionInfo()), '\n', '\n', '\n')
   for(i in 1:length(res)) {
-    cat('\n', '\n')
-    cat(cmpd[i])
-    cat('\n', '\n')
-    print(res[[i]])
-    cat('\n')
-    print(anova(res[[i]]))
-    cat('\n', '\n', '\n')
+    out <- c(out, capture.output(res[[i]]),  '\n')
+    out <- c(out, capture.output(anova(res[[i]])),  '\n', '\n', '\n')
   }
+  sink(paste0('stats/anova/', anova.name, "/model_details.txt"))
+  out
   sink()
+  
   save(res, file = paste0(out.dir, "/models_r_objects.Rdata"))
   
   ##optionally return posthoc results using tukey HSD
   if(!is.null(posthoc)) {
+    ## pvalue corrections happens within for all constrasts, no need to correct again.
     for(j in 1:length(posthoc)) {
-      test <- lsmeans(res[[1]], as.formula(paste("pairwise ~", posthoc[j])), data=dat, method = "tukey")
+      # test <- lsmeans(res[[1]], as.formula(paste("pairwise ~", posthoc[j])), data=dat)
+      test <- emmeans(res[[1]], as.formula(paste("pairwise ~", posthoc)), data=dat)
       phres<-lapply(1:length(res), 
                     FUN=function (x) {
-                      lsmeans(res[[x]], as.formula(paste("pairwise ~", posthoc[j])), data=dat, method = "tukey")
+                      # lsmeans(res[[x]], as.formula(paste("pairwise ~", posthoc[j])), data=dat, method = "tukey")
+                      emmeans(res[[1]], as.formula(paste("pairwise ~", posthoc)), data=dat)
                     })
       tmp <- summary(test$contrasts)
       pnames <- paste(strsplit(posthoc[j], "|", fixed = TRUE)[[1]], collapse = " within ")
@@ -245,15 +275,6 @@ pmfanova<-function(ramclustObj=RC,
       paste0("Post-hoc testing was performed for [", paste(posthoc, sep = " "), "] using the 'Tukey' method in the lsmeans package.")
     )
     
-  }
-  
-  ## apply pvalue correction
-  for(i in 1:nrow(mp)) {
-    mp[i,] <- p.adjust(mp[i,], method=p.adj, n = (dim(mp)[1]*dim(mp)[2]))
-    ramclustObj$history$anova7 <- paste(
-      "P-value correction was performed using the p.adjust function with method set to", 
-      paste0(p.adj, ".")
-    )
   }
   
   if(effectsplots) {
@@ -335,6 +356,32 @@ pmfanova<-function(ramclustObj=RC,
                              write.csv(file="stats/anova/anova_pvalues.csv", mp, row.names=TRUE)
                            }
   }
+  
+  if(summary.statistics) {
+    test <- aggregate(as.formula(paste(ramclustObj$cmpd[1], "~", anova.call)), data = dat, FUN = "mean")
+    fact.names <- names(test)[1:(ncol(test)-1)]
+    n <- c("cmpd", fact.names, "statistic", "value")
+    out <- data.frame(matrix(nrow = 0, ncol = length(n))); names(out) <- n
+    template <- out
+    for(i in 1:length(ramclustObj$cmpd)) {
+      tmp <- template
+      m <- aggregate(as.formula(paste(ramclustObj$cmpd[i], "~", anova.call)), data = dat, FUN = "mean")
+      s <- aggregate(as.formula(paste(ramclustObj$cmpd[i], "~", anova.call)), data = dat, FUN = "sd")
+      for(j in fact.names) {
+        tmp[1:nrow(m),j] <- m[1:nrow(m),j]
+      }
+      tmp[,"cmpd"] <- ramclustObj$cmpd[i]
+      tmps <- tmp
+      tmp[, "statistic"] <- "mean"
+      tmps[,"statistic"] <- "sd"
+      tmp[,"value"] <- m[,ncol(m)]
+      tmps[,"value"] <- s[,ncol(s)]
+      tmp <- rbind(tmp, tmps)
+      out <- rbind(out, tmp)
+    }
+    write.csv(out, file = paste0("stats/anova/", anova.name, "/summary.statistics.csv"), row.names = FALSE)
+  }
+  
   return(ramclustObj)
 }
 
