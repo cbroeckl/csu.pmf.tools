@@ -70,7 +70,7 @@ pmfanova<-function(ramclustObj=RC,
     dir.create('stats/anova')
   }
   
-  d <- getData(
+  d <- RAMClustR::getData(
     ramclustObj = ramclustObj, 
     which.data = which.data, 
     filter = filter,
@@ -254,6 +254,7 @@ pmfanova<-function(ramclustObj=RC,
   ##optionally return posthoc results using tukey HSD
   if(!is.null(posthoc)) {
     ## pvalue corrections happens within for all constrasts, no need to correct again.
+    
     for(j in 1:length(posthoc)) {
       # test <- lsmeans(res[[1]], as.formula(paste("pairwise ~", posthoc[j])), data=dat)
       test <- emmeans(res[[1]], as.formula(paste("pairwise ~", posthoc)), data=dat)
@@ -262,10 +263,15 @@ pmfanova<-function(ramclustObj=RC,
                       # lsmeans(res[[x]], as.formula(paste("pairwise ~", posthoc[j])), data=dat, method = "tukey")
                       emmeans(res[[1]], as.formula(paste("pairwise ~", posthoc)), data=dat)
                     })
-      tmp <- summary(test$contrasts)
-      pnames <- paste(strsplit(posthoc[j], "|", fixed = TRUE)[[1]], collapse = " within ")
-      pnames <- paste0(pnames, ": ", tmp$contrast) 
-      if(!is.data.frame(tmp)) pnames <- paste(pnames, tmp[[2]])
+      # test$contrasts@grid
+      tmp <- test$contrasts@grid
+      pn <- as.vector(test$contrasts@levels[[1]])[test$contrasts@grid[,1]]
+      if(ncol(tmp)>1) {
+        for(i in 2:ncol(tmp)) {
+          pn <- paste(pn, as.vector(test$contrasts@levels[[i]])[test$contrasts@grid[,i]], sep = "_")
+        }
+      }
+      pnames <- pn
       pdata <- data.frame(lapply(1:length(phres), FUN = function(x) {summary(phres[[x]]$contrasts)$p.value }))
       dimnames(pdata)[[1]] <- pnames
       dimnames(pdata)[[2]] <- dimnames(mp)[[2]]
