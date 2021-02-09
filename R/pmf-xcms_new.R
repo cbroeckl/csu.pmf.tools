@@ -118,6 +118,7 @@ pmfxcms.2<-function(
   )
   
   
+  
   ## consider removing lockmass here so we do not have to do so in Pwiz
   
   ## which type of MS/MS data do we have (if any)?
@@ -188,12 +189,14 @@ pmfxcms.2<-function(
                          verboseColumns = TRUE)
     if(is.null(reprocess)) {
       xdata <- findChromPeaks(raw_data, param = cwp, msLevel = 1, BPPARAM = mcpar)
+      save(xdata, file = "datasets/xcms.1.Rdata")
     } else {
       if(is.logical(reprocess)) {stop("reprocess should be a file name, not a logical statement, '\n'")}
       if(!file.exists(reprocess)) {stop("file", reprocess, "does not exist", '\n')}
       tmp <- load(reprocess)
       xdata <- get(tmp)
     }
+    
     # if(mse) {
     #   xdata <- findChromPeaks(xdata, param = cwp, msLevel = 2, add = TRUE)
     # }
@@ -221,7 +224,7 @@ pmfxcms.2<-function(
   pdp <- PeakDensityParam(sampleGroups = sample.groups, binSize = ms.fwhm,
                           minFraction = minfrac, bw = bw.pre)
   xdata <- groupChromPeaks(xdata, param = pdp) 
-  
+  save(xdata, file = "datasets/xcms.2.Rdata")
   
   
   
@@ -231,14 +234,14 @@ pmfxcms.2<-function(
     minFraction = max(0.5, minfrac)
   )
   xdata <- adjustRtime(xdata, param = pgp) 
-  
+  save(xdata, file = "datasets/xcms.3.Rdata")
   
   ### XCMS feature grouping, pre-RT correction
   
   pdp <- PeakDensityParam(sampleGroups = sample.groups, binSize = ms.fwhm,
                           minFraction = minfrac, bw = bw.post)
   xdata <- groupChromPeaks(xdata, param = pdp) 
-  
+  save(xdata, file = "datasets/xcms.4.Rdata")
   
   ### XCMS fillPeaks
   
@@ -247,7 +250,7 @@ pmfxcms.2<-function(
   
   raw_data@featureData@data$msLevel <- orig.msLevel
   
-  save(xdata, file="datasets/xcmsObject.Rdata")
+  save(xdata, file="datasets/xcms.5.Rdata")
   return(xdata)
 }
 
