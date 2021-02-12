@@ -4,10 +4,10 @@
 #' @param prep.batch.size integer - what is the sample preparation batch size?  default = 48. 
 #' @param run.batch.size integer - what is the analytical batch size? default = 96.
 #' @param QC  integer - every 'QC' injections will be a QC sample.  Default = 6  
+#' @param randomize logical - should prep and run order be randomized?  
 #' @param stack should the injection sample list be set up for stacked injections (TOF platforms only, currenly)
 #' @param prep.blanks integer - how many extraction blanks per prep batch? prep.blanks will be inserted into the prep sequence in random sequence position(s). 
-#' @param LTR  integer - how many long term reference material (LTR) vials per batch? default = 0.  LTR samples will be inserted at the start of each batch, and a solvent blank will ALwAYs be inserted after the LTR.
-#' @param solvent.blanks integer - how many ADDITIONAL solvent blank vials  per batch? default = 0. solvent blanks will include one for each LTR automatically. Any additional solvent blanks specified here will be inserted randomly in each batch.
+#' @param LTR  logical - If TRUE, an long term reference sample line will be included at the beginning and end of each run batch, with each LTR followed by an inserted solvent blank.  
 #' @param destination.dir valid path to directory target output directory, by default: "R:/RSTOR-PMF/Projects/"
 #' @return returns nothing, files written to directory selected by user.
 #' @author Corey Broeckling
@@ -21,8 +21,8 @@ startProject<-function (
   randomize=TRUE,
   stack = FALSE,
   prep.blanks = 3,
-  LTR = 1,
-  solvent.blanks = 0,
+  LTR = FALSE,
+  remove.invariant.factors = TRUE,
   destination.dir = "R:/RSTOR-PMF/Projects/", # 
   sub.project.name = NULL  ## add optional subproject.name
 ) {
@@ -36,13 +36,14 @@ startProject<-function (
   require(xlsx)
   
   #  do some checks to ensure we have integer values and even numbers, when appropriate. 
-  LTR <- round(LTR)
-  
-  solvent.blanks <- round(solvent.blanks)
-  if(solvent.blanks < LTR) {
-    solvent.blanks <- LTR
-    warning(paste('  -  set solvent.blanks equal to', solvent.blanks, 'to ensure a solvent blank is injected after each LTR.', '\n'))
+  if(LTR) {
+    LTR <- 1
+    solvent.blanks <- 1
+  } else {
+    LTR <- 0
+    solvent.blanks <- 0
   }
+  
   redo = FALSE 
   
   while(!redo) {
@@ -132,13 +133,9 @@ startProject<-function (
       "TOF_T3_Neg",   #5
       "TOF_Hil_Pos",  #6
       "TOF_Hil_Neg",  #7
-      "TQS_PH",       #8
-      "TQS_T3",       #9
-      "TQS_Hil",      #10
-      "Orbi",        #11
-      "other1",      #12
-      "other2",     #13
-      "other3"      #14
+      "other1",      #8
+      "other2",     #9
+      "other3"      #10
     )
     
     
@@ -153,10 +150,6 @@ startProject<-function (
     hvar <- tclVar(0)
     ivar <- tclVar(0)
     jvar <- tclVar(0)
-    kvar <- tclVar(0)
-    lvar <- tclVar(0)
-    mvar <- tclVar(0)
-    nvar <- tclVar(0)
     
     
     tt <- tktoplevel()
@@ -173,10 +166,6 @@ startProject<-function (
     h.entry <- tkcheckbutton(tt, variable=hvar)
     i.entry <- tkcheckbutton(tt, variable=ivar)
     j.entry <- tkcheckbutton(tt, variable=jvar)
-    k.entry <- tkcheckbutton(tt, variable=kvar)
-    l.entry <- tkcheckbutton(tt, variable=lvar)
-    m.entry <- tkcheckbutton(tt, variable=mvar)
-    n.entry <- tkcheckbutton(tt, variable=nvar)
     
     reset <- function()
     {
@@ -192,10 +181,6 @@ startProject<-function (
       tclvalue(hvar)<-0
       tclvalue(ivar)<-0
       tclvalue(jvar)<-0
-      tclvalue(kvar)<-0
-      tclvalue(lvar)<-0
-      tclvalue(mvar)<-0
-      tclvalue(nvar)<-0
     }
     
     submit <- function() {
@@ -210,10 +195,6 @@ startProject<-function (
       h <- as.logical(as.numeric(tclvalue(hvar)))
       i <- as.logical(as.numeric(tclvalue(ivar)))
       j <- as.logical(as.numeric(tclvalue(jvar)))
-      k <- as.logical(as.numeric(tclvalue(kvar)))
-      l <- as.logical(as.numeric(tclvalue(lvar)))
-      m <- as.logical(as.numeric(tclvalue(mvar)))
-      n <- as.logical(as.numeric(tclvalue(nvar)))
       
       en <- parent.env(environment())
       
@@ -228,10 +209,6 @@ startProject<-function (
       en$h <- h
       en$i <- i
       en$j <- j
-      en$k <- k
-      en$l <- l
-      en$m <- m
-      en$n <- n
       
       
       tkdestroy(tt)
@@ -253,10 +230,6 @@ startProject<-function (
     tkgrid(tklabel(tt, text=platforms[8]), h.entry, pady = 10, padx =50)
     tkgrid(tklabel(tt, text=platforms[9]), i.entry, pady = 10, padx =50)
     tkgrid(tklabel(tt, text=platforms[10]), j.entry, pady = 10, padx =50)
-    tkgrid(tklabel(tt, text=platforms[11]), k.entry, pady = 10, padx =50)
-    tkgrid(tklabel(tt, text=platforms[12]), l.entry, pady = 10, padx =50)
-    tkgrid(tklabel(tt, text=platforms[13]), m.entry, pady = 10, padx =50)
-    tkgrid(tklabel(tt, text=platforms[14]), n.entry, pady = 10, padx =50)
     
     
     tkgrid(submit.but, reset.but)
@@ -264,13 +237,13 @@ startProject<-function (
     tkwait.window(tt)
     
     ## ADD A LEVEL HERE FOR EACH PLATFORM ADDED ###########
-    return(data.frame(platforms, 'select'=c(a,b,c,d,e,f,g,h,i,j,k,l,m,n), stringsAsFactors=FALSE))
+    return(data.frame(platforms, 'select'=c(a,b,c,d,e,f,g,h,i,j), stringsAsFactors=FALSE))
   }
   platforms <- select.platforms()
   
   paramsets<-list(
     TOF_Hil_Pos=data.frame(c(chrominst="Waters UPLC: Sequant ZIC-pHILIC",
-                             msinst="Waters Xevo G2-XS TOF",
+                             msinst="Waters Xevo G2-XS Q-TOF",
                              column="Sequant ZIC-pHilic, 2 x 150 mm, 5 uM",
                              solvA="Water, 10 mM Ammomium Bicarbonate, pH 9.6",
                              solvB="Acetonitrile",
@@ -281,13 +254,13 @@ startProject<-function (
                              mzdifftof=0.05,
                              msmode="P",
                              ionization="ESI",
-                             ESIvoltage="2200",
+                             ESIvoltage="700",
                              colgas="Ar",
                              msscanrange="50-1200",
                              conevolt="30")),
     
     TOF_Hil_Neg=data.frame(c(chrominst="Waters UPLC: Sequant ZIC-pHILIC",
-                             msinst="Waters Xevo G2-XS TOF",
+                             msinst="Waters Xevo G2-XS Q-TOF",
                              column="Sequant ZIC-pHilic, 2 x 150 mm, 5 uM",
                              solvA="Water, 10 mM Ammomium Bicarbonate, pH 9.6",
                              solvB="Acetonitrile",
@@ -304,7 +277,7 @@ startProject<-function (
                              conevolt="30")),
     
     TOF_T3_Pos=data.frame(c(chrominst="Waters UPLC: C18 ACN Gradient",
-                            msinst="Waters Xevo G2-XS QTOF",
+                            msinst="Waters Xevo G2-XS Q-TOF",
                             column="Waters HSST3 C18, 1 x 100 mm, 1.8 uM",
                             solvA="Water, 0.1% formic acid",
                             solvB="ACN, 0.1% formic acid",
@@ -315,13 +288,13 @@ startProject<-function (
                             mzdifftof=0.05,
                             msmode="P",
                             ionization="ESI",
-                            ESIvoltage="2200",
+                            ESIvoltage="700",
                             colgas="Ar",
                             msscanrange="50-1200",
                             conevolt="30")) ,
     
     TOF_T3_Neg=data.frame(c(chrominst="Waters UPLC: C18 ACN Gradient",
-                            msinst="Waters Xevo G2-XS QTOF",
+                            msinst="Waters Xevo G2-XS Q-TOF",
                             column="Waters HSST3 C18, 1 x 100 mm, 1.8 uM",
                             solvA="Water, 0.1% formic acid",
                             solvB="ACN, 0.1% formic acid",
@@ -338,7 +311,7 @@ startProject<-function (
                             conevolt="30")) ,
     
     TOF_PH_Pos=data.frame(c(chrominst="Waters UPLC: ACN Gradient",
-                            msinst="Waters Xevo G2-XS QTOF",
+                            msinst="Waters Xevo G2-XS Q-TOF",
                             column="Waters CSH PhenylHexyl, 1 x 100 mm, 1.7 uM",
                             solvA="Water, 0.1% formic acid, 2mM AmOH",
                             solvB="ACN, 0.1% formic acid",
@@ -349,13 +322,13 @@ startProject<-function (
                             mzdifftof=0.05,
                             msmode="P",
                             ionization="ESI",
-                            ESIvoltage="2200",
+                            ESIvoltage="700",
                             colgas="Ar",
                             msscanrange="50-2000",
                             conevolt="30")) ,
     
     TOF_PH_Neg=data.frame(c(chrominst="Waters UPLC: ACN Gradient",
-                            msinst="Waters Xevo G2-XS QTOF",
+                            msinst="Waters Xevo G2-XS Q-TOF",
                             column="Waters CSH PhenylHexyl, 1 x 100 mm, 1.7 uM",
                             solvA="Water, 0.1% formic acid, 2mM AmOH",
                             solvB="ACN, 0.1% formic acid",
@@ -384,88 +357,6 @@ startProject<-function (
                          scantime="0.2",
                          energy="70",
                          deriv="Methoxyamine+MSTFA")) ,
-    
-    Orbi=data.frame(c(chrominst="Waters nanoflow UPLC",
-                      msinst="Thermo Orbitrap Velos Pro",
-                      column="C18",
-                      solvA="97% water, 1% ACN, 0.1% formic acid",
-                      solvB="ACN, 0.1% formic acid",
-                      MSlevs=1,
-                      CE1="",
-                      CE2="",
-                      mstype="Orbitrap Velos Pro",
-                      mzdifftof=0.05,
-                      msmode="P",
-                      ionization="NSI",
-                      ESIvoltage="",
-                      colgas="N",
-                      msscanrange="100-2000",
-                      conevolt="")),
-    
-    TQS_Hil=data.frame(c(chrominst="Waters UPLC: Sequant ZIC-pHilic",
-                         msinst="Waters TQS",
-                         column="Sequant ZIC-pHilic, 2 x 150 mm, 5 uM",
-                         solvA="Water, 10mM AmBicarb pH 9.6",
-                         solvB="ACN",
-                         MSlevs=1,
-                         CE1="6",
-                         CE2="",
-                         mstype="QQQ",
-                         msmode="P",
-                         ionization="ESI",
-                         ESIvoltage="2200",
-                         colgas="Ar",
-                         msscanrange="50-1200",
-                         conevolt="30")),
-    
-    TQS_PH=data.frame(c(chrominst="Waters UPLC: ACN Gradient",
-                        msinst="Waters TQS",
-                        column="Waters CSH PhenylHexyl, 1 x 100 mm, 1.7 uM",
-                        solvA="Water, 0.1% formic acid, 2mM AmOH",
-                        solvB="ACN, 0.1% formic acid",
-                        MSlevs=1,
-                        CE1="6",
-                        CE2="",
-                        mstype="QQQ",
-                        msmode="P",
-                        ionization="ESI",
-                        ESIvoltage="2200",
-                        colgas="Ar",
-                        msscanrange="50-2000",
-                        conevolt="30")) ,
-    
-    TQS_T3=data.frame(c(chrominst="Waters UPLC: ACN Gradient",
-                        msinst="Waters TQS",
-                        column="Waters T3 C18, 1 x 100 mm, 1.8 uM",
-                        solvA="Water, 0.1% formic acid",
-                        solvB="ACN, 0.1% formic acid",
-                        MSlevs=1,
-                        CE1="6",
-                        CE2="",
-                        mstype="QQQ",
-                        msmode="P",
-                        ionization="ESI",
-                        ESIvoltage="2200",
-                        colgas="Ar",
-                        msscanrange="50-1200",
-                        conevolt="30")) ,
-    
-    ICP=data.frame(c(chrominst="none",
-                     msinst="PerkinElmer Elan DRC ICP-MS",
-                     column="none",
-                     solvA="none",
-                     solvB="none",
-                     MSlevs=1,
-                     CE1="none",
-                     CE2="none",
-                     mstype="Quad",
-                     mzdifftof="none",
-                     msmode="P",
-                     ionization="ICP",
-                     ESIvoltage="",
-                     colgas="Ar",
-                     msscanrange="",
-                     conevolt="")),
     
     newLC=data.frame(c(chrominst="Waters UPLC",
                        msinst="",
@@ -552,6 +443,8 @@ startProject<-function (
     nacols<-sapply(1:ncol(smp), FUN=nacol)
     smp<-smp[,nacols]
     
+    numeric.cols <- which(sapply(1:ncol(smp), FUN = function(x) {is.numeric(smp[,x])}))
+    
     ## trim all whitespace
     for(i in 1:ncol(smp)) {
       smp[,i] <- trimws(smp[,i])
@@ -588,12 +481,11 @@ startProject<-function (
     ## replace NA values with "_"
     smp[which(is.na(smp), arr.ind = TRUE)] <- "_"
     
-    
     for (i in 1:ncol(smp)) {
       cat(names(smp)[i], '\n')
       unique.levels <- unique(smp[,i])
       cat("  levels:", if(
-        length(unique.levels) < (0.9*length(smp[,i]))
+        length(unique.levels) < length(smp[,i])
       ) {
         unique.levels} else { "unique value for each sample"
         }, '\n', '\n')
@@ -611,6 +503,22 @@ startProject<-function (
       answer == "go"
     }
     
+    if(length(numeric.cols)>0) {
+      for(x in numeric.cols) {
+        smp[,x] <- as.numeric(smp[,x])
+      }
+    }
+    
+    if(remove.invariant.factors) {
+      invariant.factors <- which(sapply(
+        1:ncol(smp), FUN = function(x){
+          length(unique(smp[,x]))==1
+        }
+      ))
+      if(length(invariant.factors)>0) {
+        smp <- smp[,-invariant.factors, drop = FALSE]
+      }
+    }
   }
   
   # nb <- ceiling(nrow(smp)/prep.batch.size)
@@ -619,15 +527,20 @@ startProject<-function (
   prep_batch <- vector(length = 0, mode = "integer")
   for(i in 1:n.prep.batches) {prep_batch <- c(prep_batch, rep(i, (prep.batch.size - prep.blanks)))}
   prep_batch <- prep_batch[1:nrow(smp)]
-  
+  samples <- smp
   smp <- data.frame(
     # "pmf.sn" = 1:nrow(smp),  # removed, as prep_order serves as pmf.sn instead.
-    "prep_order" = sample(1:prep.batch.size, nrow(smp), replace = TRUE),
+    "prep_order" = if(randomize) {
+      sample(1:length(prep_batch), nrow(samples), replace = FALSE)
+    } else {
+      1:length(prep_batch)
+    },
     "prep_batch" = prep_batch,
-    "run_order" = rep(NA, nrow(smp)),
-    "run_batch" = rep(NA, nrow(smp)),
-    smp, stringsAsFactors = FALSE
+    "run_order" = rep(NA, nrow(samples)),
+    "run_batch" = rep(NA, nrow(samples)),
+    samples, stringsAsFactors = FALSE
   )
+  
   
   for(i in 1:n.prep.batches) {
     prep.blank.rows <- smp[0,,drop = TRUE]
@@ -639,12 +552,22 @@ startProject<-function (
     }
   }
   
+  ## assign final prep order: 
+  
+  prep.order <- smp$prep_order
+  for(i in 1:n.prep.batches) {
+    do <- which(smp$prep_batch == i)
+    prep.order[do] <- if(randomize) {sample(do)} else {sort(do)}
+  }
+  prep.order <- as.numeric(prep.order)
+  smp$prep_order <- prep.order
+  
+  
   ## write prep instructional .csv  
+  
   smp <- smp[order(smp$prep_batch),]
   smp <- smp[order(smp$prep_order),]
   write.csv(smp[,-grep("run_", names(smp))], file = "prep.sample.list.csv", row.names = FALSE)
-  
-  smp.backup <- smp
   
   projname<-d["Service id:",1]
   tmp<-unlist(strsplit(projname, "-"))
@@ -656,7 +579,7 @@ startProject<-function (
   
   ## which platforms are we using? 
   doplatforms<-which(platforms[,2])
-  
+  smp.backup <- smp
   ## for each platform
   for(x in doplatforms) {
     
@@ -666,10 +589,6 @@ startProject<-function (
     setwd(platform.dir)
     
     smp <- smp.backup
-    
-    
-    ## randomize for run order
-    smp <- smp[sample(1:nrow(smp), replace = FALSE),]
     
     ## build sequence for output
     out <- smp[0,, drop = TRUE]
@@ -682,60 +601,117 @@ startProject<-function (
     qc <- out
     qc[1,] <- "qc"
     
+    rbc <- run.batch.size - LTR - solvent.blanks
+    qc.rows <- c( (LTR + solvent.blanks + 1), 
+                  seq((1 + QC + LTR + solvent.blanks), 96-LTR-solvent.blanks-QC, QC),
+                  (run.batch.size)
+    )
+    qc.rows.1 <- qc.rows
+    for(i in 1:999) {
+      qc.rows <- c(qc.rows, (run.batch.size*i)+qc.rows.1)
+    }
+    rbc <- rbc - 2 - length(qc.rows.1)
+    on.batch <- 1
+    on.batch.row <- 1
+    
+    batch.end.rows <- c(1:1000)*run.batch.size
+    if(LTR > 0) {
+      ltr.rows <- sort(c( (c(1:1000)*run.batch.size)-run.batch.size+1 , (c(1:1000)*run.batch.size)-1))
+    } else  {ltr.rows <- c()
+    }
+    if(solvent.blanks > 0) {
+      solvent.blank.rows <- ltr.rows + 1
+    } else {
+      solvent.blank.rows <- c()
+    }
+
+    nonsample.rows <- sort(c(ltr.rows, solvent.blank.rows, qc.rows))
+    while(nrow(smp) > 0) {
+      
+      if(on.batch.row %in% nonsample.rows) {
+        if(on.batch.row %in% ltr.rows) {out[on.batch.row,] <- ltr}
+        if(on.batch.row %in% solvent.blank.rows) {out[on.batch.row,] <- solvent.blank}
+        if(on.batch.row %in% qc.rows) {out[on.batch.row,] <- qc}
+        out[on.batch.row,"run_batch"] <- on.batch
+        if(on.batch.row %in% batch.end.rows) {on.batch <- on.batch + 1}
+        on.batch.row <- on.batch.row + 1
+      } else {
+        move.row <- if(randomize) {
+          sample(1:nrow(smp),1)
+        } else {
+          1
+        }
+        out[on.batch.row,] <- smp[move.row,]
+        out[on.batch.row,"run_batch"] <- on.batch
+        if(on.batch.row %in% batch.end.rows) {on.batch <- on.batch + 1}
+        on.batch.row <- on.batch.row + 1
+        smp <- smp[-move.row,]
+      }
+    }
+    
+    ## add terminal LTR/solvent.blank/QCrows as needed.
+    if(out[nrow(out), 1] != "qc") {
+      out <- rbind(out, qc)
+      out[nrow(out), "run_batch"] <- on.batch
+      out[on.batch.row, "run_order"] <- on.batch.row
+      on.batch.row <- on.batch.row + 1
+    }
     if(LTR > 0) {
       for(i in 1:LTR) {
         out <- rbind(out, ltr, solvent.blank)
+        out$run_batch[(nrow(out)-1):nrow(out)] <- on.batch
+        out$run_batch[(nrow(out)-1):nrow(out)] <- on.batch.row:(on.batch.row + 1)
       }
     }
+    # 
+    # on.row <- nrow(out)
+    # qc.rows <- seq(on.row+1, run.batch.size, QC)
+    # 
+    # 
+    # if(max(qc.rows) < run.batch.size) qc.rows <- c(qc.rows, run.batch.size)
+    # too.close <- run.batch.size - qc.rows
+    # too.close <- which(too.close > 0 & too.close < 3)
+    # if(length(too.close) > 0) {
+    #   qc.rows <- qc.rows[-too.close]
+    # }
+    # out[qc.rows,] <- qc
+    # 
+    # smp.backup <- smp
+    # out.batch <- out
+    # out.template <- out.batch
+    # out <- out[0, , drop = FALSE]
+    # available.rows <- which(is.na(out.template[,1]))
+    # n.batches <- ceiling(nrow(smp)/(length(available.rows)-solvent.blanks))
+    # for(i in 1:n.batches) {
+    #   out.batch <- out.template
+    #   available.rows <- which(is.na(out.batch[,1]))
+    #   sb.lines <- sample(available.rows, solvent.blanks)
+    #   out.batch[sb.lines,] <- solvent.blank
+    #   available.rows <- which(is.na(out.batch[,1]))
+    #   remaining.samples <- min(nrow(smp), length(available.rows))
+    #   out.batch[available.rows[1:remaining.samples],] <- smp[1:remaining.samples,]
+    #   smp <- smp[-(1:remaining.samples),]
+    #   if(i ==1) {from.order <- 1} else {from.order <- max(out$run_order)+1}
+    #   out.batch$run_order <- from.order:(from.order+run.batch.size-1)
+    #   out.batch$run_batch <- i
+    #   out <- rbind(out, out.batch)
+    # }
+    # 
+    # if(any(is.na(out[,1]))) {
+    #   out <- out[-(which(is.na(out[,1]))[1]:nrow(out)),]
+    #   if(out[nrow(out),1] != "qc") {
+    #     out <- rbind(out, qc)
+    #     out[nrow(out),"run_order"] <- 1+ as.numeric(out[nrow(out)-1,"run_order"])
+    #     out[nrow(out),"run_batch"] <- out[nrow(out),"run_batch"]
+    #   }
+    # }
     
     
-    on.row <- nrow(out)
-    qc.rows <- seq(on.row+1, run.batch.size, QC)
-    if(max(qc.rows) < run.batch.size) qc.rows <- c(qc.rows, run.batch.size)
-    too.close <- run.batch.size - qc.rows
-    too.close <- which(too.close > 0 & too.close < 3)
-    if(length(too.close) > 0) {
-      qc.rows <- qc.rows[-too.close]
-    }
-    out[qc.rows,] <- qc
-    
-    smp.backup <- smp
-    out.batch <- out
-    out.template <- out.batch
-    out <- out[0, , drop = FALSE]
-    available.rows <- which(is.na(out.template[,1]))
-    n.batches <- ceiling(nrow(smp)/(length(available.rows)-solvent.blanks))
-    for(i in 1:n.batches) {
-      out.batch <- out.template
-      available.rows <- which(is.na(out.batch[,1]))
-      sb.lines <- sample(available.rows, solvent.blanks)
-      out.batch[sb.lines,] <- solvent.blank
-      available.rows <- which(is.na(out.batch[,1]))
-      remaining.samples <- min(nrow(smp), length(available.rows))
-      out.batch[available.rows[1:remaining.samples],] <- smp[1:remaining.samples,]
-      smp <- smp[-(1:remaining.samples),]
-      if(i ==1) {from.order <- 1} else {from.order <- max(out$run_order)+1}
-      out.batch$run_order <- from.order:(from.order+run.batch.size-1)
-      out.batch$run_batch <- i
-      out <- rbind(out, out.batch)
-    }
-    
-    if(any(is.na(out[,1]))) {
-      out <- out[-(which(is.na(out[,1]))[1]:nrow(out)),]
-      if(out[nrow(out),1] != "qc") {
-        out <- rbind(out, qc)
-        out[nrow(out),"run_order"] <- 1+ as.numeric(out[nrow(out)-1,"run_order"])
-        out[nrow(out),"run_batch"] <- out[nrow(out),"run_batch"]
-      }
-    }
-    
-    
-    
-    for(i in 1:n.prep.batches) {
-      do <- which(smp$prep_batch == i)
-      smp$prep_order[do] <- 1:length(do)
-    }
-    
+    # for(i in 1:n.prep.batches) {
+    #   do <- which(smp$prep_batch == i)
+    #   smp$prep_order[do] <- 1:length(do)
+    # }
+    # 
     # create factor labels and names based on smp input
     flabs <- c(paste0("fact", 1:ncol(smp), "name"))
     fnames <- names(smp)
@@ -769,49 +745,6 @@ startProject<-function (
     save(ExpDes, file="ExpDes.Rdata")
     dir.create("R_scripts")
     
-    
-    # run.batches <- sort(unique(smp$run_batch))
-    # # cat('run.batches:', run.batches , '\n')
-    # 
-    # if(LTR > 0)  {
-    #   ltr.line <- smp[1,,drop = FALSE]
-    #   ltr.line[1,1:ncol(ltr.line)] <- "LTR"
-    #   sb.line <- smp[1,,drop = FALSE]
-    #   sb.line[1,1:ncol(sb.line)] <- "solvent.blank"
-    #   for(i in run.batches) {
-    #     for(j in 1:LTR) {
-    #       ltr.line$run_batch <- i
-    #       sb.line$run_batch <- i
-    #       ltr.line$run_order <- -2*j
-    #       sb.line$run_order <- -2*j + 1
-    #       smp <- rbind(smp, ltr.line, sb.line)
-    #     }
-    #   }
-    # }
-    # 
-    # 
-    # 
-    # if(solvent.blanks > 0) {
-    #   sb.line <- smp[1,,drop = FALSE]
-    #   sb.line[1,1:ncol(sb.line)] <- "solvent.blank"
-    #   
-    #   for(i in run.batches) {
-    #     sb.line$run_batch <- i
-    #     sb.line$run_order <- sample(which(smp$run_batch == i), 1)
-    #     smp <- rbind(smp, sb.line)
-    #   }
-    # }
-    # 
-    # 
-    # ## update run order
-    # smp <- smp[order(smp$run_batch),]
-    # for(i in run.batches) {
-    #   do <- which(smp$run_batch == i)
-    #   smp[do,] <- smp[do[order(smp[do, "run_order"])],]
-    #   smp[do,"run_order"] <- 1:length(do)
-    # }
-    # 
-    ## replace QC, LTR, solvent blank in prep_order and prep_batch columns with NA
     out[which(out$prep_order == "ltr"), "prep_order"] <- NA
     out[which(out$prep_batch == "ltr"), "prep_batch"] <- NA
     
