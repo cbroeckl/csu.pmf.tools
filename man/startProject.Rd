@@ -11,8 +11,8 @@ startProject(
   randomize = TRUE,
   stack = FALSE,
   prep.blanks = 3,
-  LTR = 1,
-  solvent.blanks = 0,
+  LTR = FALSE,
+  remove.invariant.factors = TRUE,
   destination.dir = "R:/RSTOR-PMF/Projects/",
   sub.project.name = NULL
 )
@@ -24,13 +24,13 @@ startProject(
 
 \item{QC}{integer - every 'QC' injections will be a QC sample.  Default = 6}
 
+\item{randomize}{logical - should prep and run order be randomized?}
+
 \item{stack}{should the injection sample list be set up for stacked injections (TOF platforms only, currenly)}
 
 \item{prep.blanks}{integer - how many extraction blanks per prep batch? prep.blanks will be inserted into the prep sequence in random sequence position(s).}
 
-\item{LTR}{integer - how many long term reference material (LTR) vials per batch? default = 0.  LTR samples will be inserted at the start of each batch, and a solvent blank will ALwAYs be inserted after the LTR.}
-
-\item{solvent.blanks}{integer - how many ADDITIONAL solvent blank vials  per batch? default = 0. solvent blanks will include one for each LTR automatically. Any additional solvent blanks specified here will be inserted randomly in each batch.}
+\item{LTR}{logical - If TRUE, an long term reference sample line will be included at the beginning and end of each run batch, with each LTR followed by an inserted solvent blank.}
 
 \item{destination.dir}{valid path to directory target output directory, by default: "R:/RSTOR-PMF/Projects/"}
 }
