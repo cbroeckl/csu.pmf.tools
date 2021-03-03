@@ -246,10 +246,10 @@ pmfanova<-function(ramclustObj=RC,
     out <- c(out, capture.output(anova(res[[i]])),  '\n', '\n', '\n')
   }
   sink(paste0('stats/anova/', anova.name, "/model_details.txt"))
-  out
+  cat(out)
   sink()
   
-  save(res, file = paste0(out.dir, "/models_r_objects.Rdata"))
+  save(res, file = paste0(out.dir, "/models.Rdata"))
   
   ##optionally return posthoc results using tukey HSD
   if(!is.null(posthoc)) {
@@ -261,11 +261,11 @@ pmfanova<-function(ramclustObj=RC,
       phres<-lapply(1:length(res), 
                     FUN=function (x) {
                       # lsmeans(res[[x]], as.formula(paste("pairwise ~", posthoc[j])), data=dat, method = "tukey")
-                      emmeans(res[[1]], as.formula(paste("pairwise ~", posthoc)), data=dat)
+                      emmeans(res[[x]], as.formula(paste("pairwise ~", posthoc)), data=dat)
                     })
       # test$contrasts@grid
       tmp <- test$contrasts@grid
-      pn <- as.vector(test$contrasts@levels[[1]])[test$contrasts@grid[,1]]
+      pn <- as.vector(test$contrasts@levels[[1]])
       if(ncol(tmp)>1) {
         for(i in 2:ncol(tmp)) {
           pn <- paste(pn, as.vector(test$contrasts@levels[[i]])[test$contrasts@grid[,i]], sep = "_")
@@ -336,23 +336,29 @@ pmfanova<-function(ramclustObj=RC,
     int.rg <- seq(from = min(ints), to = max(ints), length.out = 5)
     int.rg <- 10^(int.rg^0.5)
     
-    pdf(file=paste0(out.dir, "/anova_summary.pdf"), width=10, height=8)
-    for(i in 2:ncol(pldata)) {
-      par(xpd=FALSE)
-      plot(pldata[,1], -log10(pldata[,i]), 
-           xlab="retention time (seconds)",
-           ylab="-log(pvalue)", ylim = c(0, -log10(min(0.04, min(pldata[,i])))),
-           cex.axis=1, cex.lab=1, main=paste("ANOVA p-values:", dimnames(pldata)[[2]][i]), bty='L',
-           pch=21, cex=cexs, bg=plcols[,i], 
-           sub = "circle size reflects median feature intensity", cex.sub = 0.5)
-      abline(h=-log10(pcut), col=gray(0.4), lty=2)
-      par(xpd = TRUE)
-      legend(legend=formatC(round(int.rg)), x.intersp = 2, y.intersp = max(cex.rg/1.5),
-             x= "topright", inset=c(-0.05,0),
-             pt.cex=cex.rg, bty="n", pch=21, bg=rgb(red=0, green=80, blue=0, max=255) )
-      par(xpd=FALSE)
+    if(plots) {
+      pdf(file=paste0(out.dir, "/anova_summary.pdf"), width=10, height=8)
+      for(i in 2:ncol(pldata)) {
+        par(xpd=FALSE)
+        if(any(pldata[,i]) == 0) {
+          fix <- as.vector(which(pldata[,i] == 0))
+          pldata[fix,i] <- min(pldata[-fix,i])
+        }
+        plot(pldata[,1], -log10(pldata[,i]), 
+             xlab="retention time (seconds)",
+             ylab="-log(pvalue)", ylim = c(0, -log10(min(0.04, min(pldata[,i])))),
+             cex.axis=1, cex.lab=1, main=paste("ANOVA p-values:", dimnames(pldata)[[2]][i]), bty='L',
+             pch=21, cex=cexs, bg=plcols[,i], 
+             sub = "circle size reflects median feature intensity", cex.sub = 0.5)
+        abline(h=-log10(pcut), col=gray(0.4), lty=2)
+        par(xpd = TRUE)
+        legend(legend=formatC(round(int.rg)), x.intersp = 2, y.intersp = max(cex.rg/1.5),
+               x= "topright", inset=c(-0.05,0),
+               pt.cex=cex.rg, bty="n", pch=21, bg=rgb(red=0, green=80, blue=0, max=255) )
+        par(xpd=FALSE)
+      }
+      dev.off()
     }
-    dev.off()
     
     if(!is.null(ramclustObj$clrt) & !is.null(ramclustObj$annconf)) {
       write.csv(file=paste0(out.dir, "/anova_pvalues.csv"), 
