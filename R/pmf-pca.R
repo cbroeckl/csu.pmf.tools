@@ -26,10 +26,12 @@ pmfpca<-function(ramclustObj=RC,
                  which.data="SpecAbund",
                  scale="pareto",
                  subset = c(""),
+                 subset.cmpd = c(),
                  which.factors = NULL,
                  num.factors = NULL,
                  label.by = "cmpd", 
                  npc = "auto",
+                 bw = FALSE,
                  ag.summary.plot = FALSE) {
   
   require(ggplot2)
@@ -99,6 +101,13 @@ pmfpca<-function(ramclustObj=RC,
     
   }
   
+  if(length(subset.cmpd)>0) {
+    if(!is.integer(subset.cmpd)) {
+      stop("subset.cmpd must be a vector of integers")
+    }
+    d[[2]] <- d[[2]][,subset.cmpd]
+    d[[3]] <- d[[3]][,ncol(d[[1]])+subset.cmpd]
+  }
   
   if(!is.null(num.factors)) {
     for(i in 1:length(num.factors)) {
@@ -148,7 +157,7 @@ pmfpca<-function(ramclustObj=RC,
       
       force.npc = TRUE
       ramclustObj$history$PCA.npc <- paste(ramclustObj$history$PCA.npc, 
-        "The nPC value was then manually set to '2' to enable two dimensional plotting. "
+                                           "The nPC value was then manually set to '2' to enable two dimensional plotting. "
       )
     }
   } else {
@@ -226,17 +235,58 @@ pmfpca<-function(ramclustObj=RC,
       
     }
     
-    }
-    
+  }
+  
   par(mfrow = c(1,1))
   xy <- combn(x = which(plot.pcs),  2)
+  xy[,] <- dimnames(pc$x)[[2]][xy[,]] 
+  
   
   for(i in 1:ncol(xy)) {
     for(j in 1:length(which.factors)) {
-      print(autoplot(pc, x = xy[1,i], y = xy[2,i], 
-                     data = cbind(d[[1]], d[[2]]), 
-                     colour = which.factors[j], frame = !any(which.factors[j] %in% num.factors), 
-                     width = 5) + theme_bw()) 
+      
+      sc <- data.frame(d[[1]][,which.factors[j]], pc$x[,xy[,i]], stringsAsFactors = TRUE)
+      names(sc)[1] <- which.factors[j]
+      sc <- sc[order(sc[,1]),]
+
+      gray.levs <- seq(from = 0.1, to = 0.9, length.out = length(levels(sc[,1])))
+      hulls <- data.frame(sc[chull(as.matrix(sc[which(sc[,1] == levels(sc[,1])[1]),c(2,3)])),c(2:3)])
+      cols <- rep(gray(gray.levs[1]), nrow(hulls))
+      if(length(levels(sc[,1]))>1) {      
+        for(x in 2:length(levels(sc[,1]))) {
+          do <- which(sc[,1] == levels(sc[,1])[x])
+          hulls.tmp <- sc[do[chull(sc[do,c(2,3)])],c(2:3)]
+          hulls <- rbind(hulls, hulls.tmp)
+          if(bw) {
+            cols <- c(cols, rep(gray(gray.levs[x]), nrow(hulls.tmp)))
+          } else {
+            
+          }
+          
+        }}
+      
+      par(mfrow = c(1,1))
+      xy <- combn(x = which(plot.pcs),  2)
+      
+      if(bw){
+        p <- ggplot(data=sc, aes_string(x=names(sc)[2], y=names(sc)[3])) + 
+        geom_point(size = 2, aes_string(shape = names(sc)[1])) + 
+        geom_polygon(data = hulls, 
+                     fill= NA, 
+                     color = gray(0.5), 
+                     aes(linetype = as.factor(cols)), show.legend=FALSE) +
+        theme_bw() 
+      } else {
+        p <- autoplot(pc, x = xy[1,i], y = xy[2,i], 
+                       data = cbind(d[[1]], d[[2]]), 
+                       colour = which.factors[j], frame = !any(which.factors[j] %in% num.factors), 
+                       width = 5) + theme_bw()
+        }
+      
+      
+      
+      print(p) 
+      
     }
   }
   dev.off()
