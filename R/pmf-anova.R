@@ -18,6 +18,7 @@
 #' @param which.quan; chracter vector.  which factors should be interpreted as quantitative?  i.e. c("time", "dose")
 #' @param filter logical, TRUE by default. when $cmpd.use slot is present (from rc.cmpd.filter.cv function), only cmpds that passed cv filtering are used. If you wish to change that behavior, rerun the rc.cmpd.filter.cv function with a really high CV threshold. 
 #' @param summary.statistics logical, TRUE by default.  If true, calculate mean and standard deviation for each level as defined by the anova.call model.
+#' @param output.summary logical, TRUE by default.  If true, saves full model results for all ANOVA as .Rdata file, and exports all summaries to a .txt file.  
 #' @return returns a ramclustR object.  new R object in $pca slot. Optionally, new R object in $AuerGervini slot if npc = "auto".
 #' @concept RAMClustR
 #' @author Corey Broeckling
@@ -39,7 +40,8 @@ pmfanova<-function(ramclustObj=RC,
                    p.adj="BH",
                    which.quan=NULL,
                    filter = TRUE,
-                   summary.statistics = TRUE
+                   summary.statistics = TRUE, 
+                   output.summary = TRUE
 ) {
   
   # consider moving away from lsmeans and effects, keeping only emmeans dependency.
@@ -209,10 +211,33 @@ pmfanova<-function(ramclustObj=RC,
   
   if(use == 2) {
     cat("using mixed linear model analysis",'\n')
-    test <- lmerTest::lmer(as.formula(paste(cmpd[1], "~", anova.call)), data = dat)
-    res<-lapply(1:length(cmpd), FUN = function(x){
-      lmerTest::lmer(as.formula(paste(cmpd[x], "~", anova.call)), data = dat)
-    })
+    assign(".TeMpVaR", dat, envir=globalenv())
+    test <- lmerTest::lmer(as.formula(paste(cmpd[1], "~", anova.call)), data = .TeMpVaR)
+    if(effectsplots) {
+      testplot<-try(
+        effects::allEffects(test), silent = TRUE
+      )
+      if(class(testplot) != 'try-error') {
+        pdf(file=paste0(out.dir, "/effectsplots.pdf"), width=16, height=8)
+      } else {
+        cat("effects plots failed: setting effectsplots = FALSE", '\n')
+        cat(testplot)
+        stop("effects plots failed")
+        effectsplots = FALSE
+      }
+    }
+    
+    res <- list(rep(NA, length(cmpd)))
+    for(x in 1:length(cmpd)) {
+      res.x <- lmerTest::lmer(as.formula(paste(cmpd[x], "~", anova.call)), data = .TeMpVaR)
+      if(effectsplots) {
+        plot(effects::allEffects(res.x), main=ramclustObj[[label.by]][i], ylab="effect size (signal intensity)")
+      }
+      res[[x]] <- res.x
+    }
+    
+    if(effectsplots) { dev.off() }
+    
     pnames<-dimnames((anova(test, ddf="Kenward-Roger"))[1])[[1]]
     mp<-data.frame(lapply(1:length(res), FUN=function(x) {anova(res[[x]], ddf="Kenward-Roger")$"Pr(>F)"}))
     if(length(pnames) == dim(mp)[[2]]) {mp <- as.data.frame(t(mp))}
@@ -223,7 +248,7 @@ pmfanova<-function(ramclustObj=RC,
       paste0("The model used was '", anova.call, ".'"),
       "P-values were assigned using the 'anova' function with ddf set to 'Kenward-Roger.'"
     )
-    
+    on.exit(rm(.TeMpVaR, envir=globalenv()))
   }
   
   ## pvalue correction: 
@@ -239,17 +264,22 @@ pmfanova<-function(ramclustObj=RC,
   
   cat(out.dir, '\n')
   
-  out <- c("ANOVA MODEL DETAILS:  ", '\n')
-  out <- c(out, capture.output(sessionInfo()), '\n', '\n', '\n')
-  for(i in 1:length(res)) {
-    out <- c(out, capture.output(res[[i]]),  '\n')
-    out <- c(out, capture.output(anova(res[[i]])),  '\n', '\n', '\n')
+  if(output.summary) {
+    out <- c("ANOVA MODEL DETAILS:  ", '\n')
+    out <- c(out, capture.output(sessionInfo()), '\n', '\n', '\n')
+    for(i in 1:length(res)) {
+      out <- c(out, capture.output(res[[i]]),  '\n')
+      out <- c(out, capture.output(anova(res[[i]])),  '\n', '\n', '\n')
+    }
+    sink(paste0('stats/anova/', anova.name, "/model_details.txt"))
+    cat(out)
+    sink()
+    
+    
+    save(res, file = paste0(out.dir, "/models.Rdata"))
   }
-  sink(paste0('stats/anova/', anova.name, "/model_details.txt"))
-  cat(out)
-  sink()
-  
-  save(res, file = paste0(out.dir, "/models.Rdata"))
+
+
   
   ##optionally return posthoc results using tukey HSD
   if(!is.null(posthoc)) {
@@ -257,11 +287,11 @@ pmfanova<-function(ramclustObj=RC,
     
     for(j in 1:length(posthoc)) {
       # test <- lsmeans(res[[1]], as.formula(paste("pairwise ~", posthoc[j])), data=dat)
-      test <- emmeans(res[[1]], as.formula(paste("pairwise ~", posthoc)), data=dat)
+      test <- emmeans::emmeans(res[[1]], as.formula(paste("pairwise ~", posthoc[j])), data=dat)
       phres<-lapply(1:length(res), 
                     FUN=function (x) {
                       # lsmeans(res[[x]], as.formula(paste("pairwise ~", posthoc[j])), data=dat, method = "tukey")
-                      emmeans(res[[x]], as.formula(paste("pairwise ~", posthoc)), data=dat)
+                      emmeans::emmeans(res[[x]], as.formula(paste("pairwise ~", posthoc[j])), data=dat)
                     })
       # test$contrasts@grid
       tmp <- test$contrasts@grid
@@ -283,27 +313,7 @@ pmfanova<-function(ramclustObj=RC,
     
   }
   
-  if(effectsplots) {
-    
-    testplot<-try(
-      allEffects(res[[1]]), silent = TRUE
-    )
-    # cat(class(testplot), '\n')
-    if(class(testplot) != 'try-error') {
-      pdf(file=paste0(out.dir, "/effectsplots.pdf"), width=16, height=8)
-      
-      for(i in 1:length(res)) {
-        # cat(i, '\n')
-        plot(allEffects(res[[i]]), main=ramclustObj[[label.by]][i], ylab="effect size (signal intensity)")
-      }
-      dev.off()
-    } else { 
-      cat("effects plots failed:", '\n')
-    }
-    ramclustObj$history$anova8 <- paste(
-      "Effects plots are generated using the allEffects function."
-    )
-  }
+
   # out.dir
   ramclustObj[[paste0("anova.pval_", anova.name)]] <- mp
   
@@ -370,25 +380,38 @@ pmfanova<-function(ramclustObj=RC,
   }
   
   if(summary.statistics) {
-    test <- aggregate(as.formula(paste(ramclustObj$cmpd[1], "~", anova.call)), data = dat, FUN = "mean")
+    f <- paste(ramclustObj$cmpd[1], "~", anova.call)
+    if(grepl("|", f, fixed = TRUE)) {
+      f <- unlist(strsplit(f, "+", fixed = TRUE))
+      for(i in length(f):1) {
+        if(grepl("|", f[i], fixed = TRUE)) {
+          f <- f[-i]
+        }
+      }
+    }
+    test <- aggregate(as.formula(f), data = dat, FUN = "mean")
     fact.names <- names(test)[1:(ncol(test)-1)]
     n <- c("cmpd", fact.names, "statistic", "value")
     out <- data.frame(matrix(nrow = 0, ncol = length(n))); names(out) <- n
     template <- out
     for(i in 1:length(ramclustObj$cmpd)) {
       tmp <- template
-      m <- aggregate(as.formula(paste(ramclustObj$cmpd[i], "~", anova.call)), data = dat, FUN = "mean")
-      s <- aggregate(as.formula(paste(ramclustObj$cmpd[i], "~", anova.call)), data = dat, FUN = "sd")
+      m <- aggregate(as.formula(f), data = dat, FUN = "mean")
+      s <- aggregate(as.formula(f), data = dat, FUN = "sd")
+      se <- aggregate(as.formula(f), data = dat, FUN = function(x) sd(x)/sqrt(length(x)))
       for(j in fact.names) {
         tmp[1:nrow(m),j] <- m[1:nrow(m),j]
       }
       tmp[,"cmpd"] <- ramclustObj$cmpd[i]
       tmps <- tmp
+      tmpse <- tmp
       tmp[, "statistic"] <- "mean"
       tmps[,"statistic"] <- "sd"
+      tmpse[,"statistic"] <- "se"
       tmp[,"value"] <- m[,ncol(m)]
       tmps[,"value"] <- s[,ncol(s)]
-      tmp <- rbind(tmp, tmps)
+      tmpse[,"value"] <- se[,ncol(se)]
+      tmp <- rbind(tmp, tmps, tmpse)
       out <- rbind(out, tmp)
     }
     write.csv(out, file = paste0("stats/anova/", anova.name, "/summary.statistics.csv"), row.names = FALSE)
