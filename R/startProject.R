@@ -442,7 +442,7 @@ startProject<-function (
     nacol<-function(x) {return(!all(is.na(smp[,x])))}
     nacols<-sapply(1:ncol(smp), FUN=nacol)
     smp<-smp[,nacols]
-    
+    orig.smp <- smp
     numeric.cols <- which(sapply(1:ncol(smp), FUN = function(x) {is.numeric(smp[,x])}))
     
     ## trim all whitespace
@@ -555,9 +555,12 @@ startProject<-function (
   ## assign final prep order: 
   
   prep.order <- smp$prep_order
+  max.order <- 0
   for(i in 1:n.prep.batches) {
     do <- which(smp$prep_batch == i)
-    prep.order[do] <- if(randomize) {sample(do)} else {sort(do)}
+    do.ind <- max.order + 1:length(do)
+    max.order <- max(do.ind)
+    prep.order[do] <- if(randomize) {sample(do.ind)} else {do.ind}
   }
   prep.order <- as.numeric(prep.order)
   smp$prep_order <- prep.order
@@ -653,7 +656,7 @@ startProject<-function (
     if(out[nrow(out), 1] != "qc") {
       out <- rbind(out, qc)
       out[nrow(out), "run_batch"] <- on.batch
-      out[on.batch.row, "run_order"] <- on.batch.row
+      #  out[on.batch.row, "run_order"] <- on.batch.row
       on.batch.row <- on.batch.row + 1
     }
     if(LTR > 0) {
@@ -663,6 +666,20 @@ startProject<-function (
         out$run_batch[(nrow(out)-1):nrow(out)] <- on.batch.row:(on.batch.row + 1)
       }
     }
+    
+    out$run_batch <- as.integer(as.numeric(out$run_batch))
+    n.run.batches <- max(out$run_batch, na.rm = TRUE)
+    out$run_order <- 1:nrow(out)
+    
+    for(i in 1:n.run.batches) {
+      do <- which(out$run_batch == i)
+      out$run_order[do] <- sample(1:length(do))
+      tmp <- out[do,]
+      tmp <- tmp[order(tmp$run_order),]
+      out[do,] <- tmp
+    }
+    
+    
     # 
     # on.row <- nrow(out)
     # qc.rows <- seq(on.row+1, run.batch.size, QC)
@@ -706,12 +723,12 @@ startProject<-function (
     #   }
     # }
     
-    
+    # 
     # for(i in 1:n.prep.batches) {
     #   do <- which(smp$prep_batch == i)
     #   smp$prep_order[do] <- 1:length(do)
     # }
-    # 
+
     # create factor labels and names based on smp input
     flabs <- c(paste0("fact", 1:ncol(smp), "name"))
     fnames <- names(smp)
