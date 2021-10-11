@@ -1,0 +1,811 @@
+---
+title: "Metabolomics analysis report"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+author: 
+- "[Corey Broeckling](mailto:cbroeckl@colostate.edu)"
+- "[CSU ARC-BIO](https://www.research.colostate.edu/bio/)"  
+
+output: 
+  html_document: 
+    theme: sandstone
+    toc: TRUE
+    toc_depth: 2
+    collapsed: FALSE 
+    fig_caption: yes 
+---
+
+<style>
+.nav>li>a {
+position: relative;
+display: block;
+padding: 10px 15px;
+color: #1E4D2B;
+}
+.nav-pills>li.active>a, .nav-pills>li.active>a:hover, .nav-pills>li.active>a:focus {
+color: #C8C372;
+background-color: #1E4D2B;
+}
+
+</style>
+
+
+```{r setup, include=FALSE, echo = FALSE, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE}
+
+library(xcms) 
+library(RAMClustR)
+library(csu.pmf.tools)
+library(magrittr)
+library(kableExtra)
+library(ggplot2)
+library(gridExtra)
+library(plotlyutils)
+library(manipulateWidget)
+library(magrittr)
+library(DT)
+library(ChemmineR)
+library(extrafont)
+register(bpstart(SnowParam(2)))
+
+```
+
+```{r logo, echo=FALSE, cache = FALSE}
+
+htmltools::img(src = knitr::image_uri(system.file("ARC.BIO_logoContact.png", package = "csu.pmf.tools")), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px;',
+               width = "300px")
+```
+
+```{r import.evaluate, include = FALSE, echo = FALSE, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE}
+load("datasets/xcms.5.Rdata")
+load("datasets/RCobject_4_postStats.Rdata")
+fd <- featureDefinitions(xdata) 
+fd <- data.frame(fd)
+ints <- split(log2(chromPeaks(xdata)[, "into"]),
+              f = chromPeaks(xdata)[, "sample"])
+des <- getData(RC)
+xcms <- any(ls() == "xdata")
+xh <- xcms::processHistory(xdata)
+rc <- any(ls() == "RC")
+qc <- !is.null(RC$qc.cv.cmpd)
+
+cit.list <- c(
+  'R Core Team' = paste0(
+    citation()$author, 
+    " (", citation()$year, "). ",
+    citation()$title, ". ",
+    citation()$organization, ", ", 
+    citation()$address, ", ",
+    citation()$url, "."
+  ),
+  
+  '(Broeckling 2012)' = "Broeckling CD, Heuberger A, Prince JA, Ingelsson E, Prenni JE. Assigning precursor-product ion relationships in indiscriminant MS/MS data from non-targeted metabolite profiling studies. Metabolomics 2012. 9(1):33-43.",
+  
+  '(Broeckling 2014)' = "Broeckling CD, Afsar FA, Neumann S, Ben-Hur A, Prenni JE. RAMClust: a novel feature clustering method enables spectral-matching-based annotation for metabolomics data. Anal Chem. 2014. 86(14):6812-7.",
+  
+  '(Broeckling 2016)' = "Broeckling CD, Ganna A, Layer M, Brown K, Sutton B, Ingelsson E, Peers G, Prenni JE. Enabling Efficient and Confident Annotation of LC-MS Metabolomics Data through MS1 Spectrum and Time Prediction. Anal Chem. 2016. 88(18):9226-34.", 
+  
+  '(Tsugawa 2016)' = "Tsugawa H, Kind T, Nakabayashi R, Yukihira D, Tanaka W, Cajka T, Saito K, Fiehn O, Arita M. Hydrogen Rearrangement Rules: Computational MS/MS Fragmentation and Structure Elucidation Using MS-FINDER Software. Anal Chem. 2016. 88(16):7946-58.",
+  
+  '(Jaeger 2016)' = "Jaeger C, Meret M, Schmitt C, Lisec J. Compound annotation in liquid chromatography/high-resolution mass spectrometry based metabolomics: robust adduct ion determination as a prerequisite to structure prediction in electrospray ionization mass spectra. Rapid Commun Mass Spectrom. 2017. 31(15):1261-1266.",
+  
+  '(Wohlgemuth 2010)' = "Wohlgemuth G, Haldiya PK, Willighagen E, Kind T, Fiehn O. The Chemical Translation Service - a web-based tool to improve standardization of metabolomic reports. Bioinformatics. 2010. 26(20):2647-8.",
+  
+  '(Wishart 2018)' = "Wishart DS, Feunang YD, Marcu A, Guo AC, Liang K, Vazquez-Fresno R, Sajed T, Johnson D, Li C, Karu N, Sayeeda Z, Lo E, Assempour N, Berjanskii M, Singhal S, Arndt D, Liang Y, Badran H, Grant J, Serra-Cayuela A, Liu Y, Mandal R, Neveu V, Pon A, Knox C, Wilson M, Manach C, Scalbert A. HMDB 4.0: the human metabolome database for 2018. Nucleic Acids Res. 2018. 46(D1):D608-D617.",
+  
+  '(Fahy 2007)' = "Fahy E, Sud M, Cotter D, Subramaniam S. LIPID MAPS online tools for lipid research. Nucleic Acids Res. 2007. 35:W606-12.",
+  
+  '(Kim 2019)' = "Kim S, Chen J, Cheng T, Gindulyte A, He J, He S, Li Q, Shoemaker BA, Thiessen PA, Yu B, Zaslavsky L, Zhang J, Bolton EE. PubChem 2019 update: improved access to chemical data. Nucleic Acids Res. 2019. 47(D1):D1102-D1109.",
+  
+  '(Djoumbou 2016)' = "Djoumbou Feunang Y, Eisner R, Knox C, Chepelev L, Hastings J, Owen G, Fahy E, Steinbeck C, Subramanian S, Bolton E, Greiner R, Wishart DS. ClassyFire:  automated chemical classification with a comprehensive, computable taxonomy. J  Cheminform. 2016. 8:61.",
+  
+  '(Smith 2006)' = "Smith, C.A. and Want, E.J. and O'Maille, G. and Abagyan,R. and Siuzdak, G.: XCMS: Processing mass spectrometry data for metabolite profiling using nonlinear peak alignment, matching and identification, Analytical Chemistry, 78:779-787 (2006)",
+  
+  '(Tautenhahn 2008)' = "Ralf Tautenhahn, Christoph Boettcher, Steffen Neumann: Highly sensitive feature detection for high resolution LC/MS BMC Bioinformatics, 9:504 (2008)"
+  
+)
+
+```
+
+
+## Abstract 
+This report describes methods and results for `r paste(RC$ExpDes[[1]][1,1], '-', RC$ExpDes[[1]][5,1])`.  Metabolomics was performed on `r RC$ExpDes[[1]][3,1]` `r tolower(RC$ExpDes[[1]][4,1])` samples.  `r dim(RC$SpecAbund)[1]` samples were analyzed, and `r dim(RC$SpecAbund)[2]` compounds are reported in the final dataset. This report serves to summarize the methods, describes data quality, and introduces annotation and statistical results.   A full complement of supplementary files is additionally available.  
+
+
+```{r xcms.header, include = FALSE, echo = FALSE, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE, eval = xcms}
+
+params <- ""
+for(i in 1:length(xh)) {
+  params <- paste(params, paste('\n', gsub("Param", "", class(xh[[i]]@param)[1]),   '\n'))
+  vals <- xh[[i]]@param
+  sln <- slotNames(vals)
+  for(j in 1:length(sln)) {
+    val <- slot(vals, sln[j])
+    if(length(val) > 3 | length(val) < 1) next
+    params <- paste(params, paste( "  -", sln[j], ":", paste0(slot(vals, sln[j]), "  ", collapse = ","), '\n'))
+  }
+  
+}
+
+```
+
+
+## Sample preparation
+The samples were submitted dried and partially homogenized in seed packet envelopes. All of the sample was placed into a sterile 5 mL transport tube with one large stainless steel bead and 4 small stainless steel beads. The samples were then ground and homogenized into a fine powder using the Bullet Blender® STORM 5. After grinding, 20mg +/- 0.5 mg of sample was weighed into a 2mL clear glass autosampler vial. 1mL of 4:1 methanol/water spiked with a 6-mix labeled internal standard (6ug/mL L-alanine-13C3, 0.6ug/mL L-phenylalanine-13C6, 0.3ug/mL fumaric acid-13C4, 3ug/mL L-tryptophan-13C11, 0.3ug/mL indole-3-acetic-acid-13C6) was added to each sample and then briefly vortexed by hand. The samples were then shaken for 2 hours at 4°C, briefly hand vortexed, sonicated for 30 minutes in a cold bath, and then shaken for an additional hour at 4°C. After shaking the samples were centrifuged at 3750 rpm for 15 minutes at 4°C and 600µL of supernatant was collected and transferred to a new 2mL clear glass autosampler vial. The samples were then left at -20°C overnight. The next day the samples were again centrifuged at 3750 rpm for 15 minutes at 4°C and 400uL of this supernatant was collected and transferred to new, clean 2mL glass autosampler vial. 50uL of this was collected and transferred to inserts to be directly injected. 20uL from each sample was taken and combined for a quality control (QC) sample. 50uL of this QC pool was aliquoted to inserts for direct injection. Two curves were prepared for compound identification relative quantitation. A 15-compound mixture (CBDmix-15) was prepared containing each of the following compounds at 9.8ug/mL: CBCO, CBDV, THCV, CBCV, CBN, delta8-THC, CBC, CBT, CBG, CBDVA, THCVA, CBNA, delta9-THCA, CBCA, CBGA. A 4-compound mixture (CBDmix-4) was also prepared containing each of the following compounds at 50ug/mL: CBDA, CBD, delta9-THC, CBL. A two-fold dilution was performed using 100% methanol from these 9.8ug/mL and 50ug/mL stock curve solutions for a 10 point curve. 50uL from each curve point was then dried completely under nitrogen and resuspended in 50uL of 4:1 methanol/water spiked with a 6-mix labeled internal standard (6ug/mL L-alanine-13C3, 0.6ug/mL L-phenylalanine-13C6, 0.3ug/mL fumaric acid-13C4, 3ug/mL L-tryptophan-13C11, 0.3ug/mL indole-3-acetic-acid-13C6). These two curves were then directly injected onto LCMS.
+
+## Data acquisition
+One microliter of 80% methanol extract was injected onto a Waters Acquity UPLC system in randomized order with a pooled quality control (QC) injection after every 6 samples. Separation was achieved using a Waters Acquity UPLC HSS T3 column (1.8 µM, 1.0 x 100 mm), using a gradient from solvent A (Water, 0.1% formic acid) to solvent B (Acetonitrile, 0.1% formic acid). Injections were made in 99% A, held at 99% A for 1 min, ramped to 98% B over 12 minutes, held at 98% B for 3 minutes, and then returned to starting conditions over 0.05 minutes and allowed to re-equilibrate for 3.95 minutes, with a 200 µL/min constant flow rate.  The column and samples were held at 65 °C and 6 °C, respectively. The column eluent was infused into a Waters Xevo G2-XS Q-TOF-MS with an electrospray source in positive mode, scanning 50-1200 m/z at 0.1 seconds per scan, alternating between MS (6 V collision energy) and MSE mode (15-30 V ramp). Calibration was performed using sodium formate with 1 ppm mass accuracy. The capillary voltage was held at 700 V, source temperature at 150 °C, and nitrogen desolvation temperature at 600 °C with a flow rate of 1000 L/hr.
+
+## Raw data {.tabset .tabset-pills}
+We can visualize the raw data as chromatograms.  In the plots below, each chromatogram represents in injection.  The chromatographic dimension is plotted on the x-axis (rention time, in seconds), and the signal intensity is plotted on the y-axis. The visible chromatographic peaks, roughly gaussian in shape, are the molecules contributing the majority of the signal.  Each peak represents one or more molecules.   This visualization is useful for evaluating overall patterns, but downstream processing steps will use mass specific signals, providing much greater depth that is offered in the chromatogram plotted here.  Note that you can hide one or more groups by clicking on the legend labels.  
+
+``` {r raw.chromatograms, include = TRUE, echo = FALSE, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE, eval = xcms, fig.width=8, fig.cap="\\label{fig:raw.chromatograms}Base peak ion chromatograms by sample type."}
+
+
+
+if(file.exists("datasets/chromatograms.Rdata")) {
+  load("datasets/chromatograms.Rdata")
+  qc <- grep("qc", bpis@phenoData@data[,1], ignore.case = TRUE)
+  blank <- grep("blank", bpis@phenoData@data[,1], ignore.case = TRUE)
+  sample <- (1:length(bpis@phenoData@data[,1]))[-c(qc, blank)]
+
+  smp <- vector(length = 0)
+  cols <- vector(length = 0)
+  type <- vector(length = 0)
+  
+  if(length(qc) > 0) {
+    smp <- c(smp, qc);  
+    cols <- c(cols, rep(2, length(qc)))
+    type <- c(type, rep("QC", length(qc)))
+  }
+  if(length(sample) > 0) { 
+    smp <- c(smp, sample);  
+    cols <- c(cols, rep(1, length(sample))) 
+    type <- c(type, rep("Sample", length(sample)))
+  }
+  if(length(blank) > 0) { 
+    smp <- c(smp, blank)  
+    cols <- c(cols, rep(4, length(blank)))
+    type <- c(type, rep("Blank", length(blank)))
+  }
+  
+  o <- order(smp)
+  smp <- smp[o]
+  cols <- cols[o]
+  type <- type[o]
+  
+  
+} else {
+  
+  qc <- grep("qc", xdata@phenoData@data[,1], ignore.case = TRUE)
+  blank <- grep("blank", xdata@phenoData@data[,1], ignore.case = TRUE)
+  sample <- (1:length(xdata@phenoData@data[,1]))[-c(qc, blank)]
+  if(length(qc) > 5) {qc <- sample(qc, 5)}
+  if(length(sample) >15) {sample <- sample(sample, 15)}
+  if(length(blank) >5) {sample <- sample(blank, 5)}
+  
+  smp <- vector(length = 0)
+  cols <- vector(length = 0)
+  type <- vector(length = 0)
+  
+  if(length(qc) > 0) {
+    smp <- c(smp, qc);  
+    cols <- c(cols, rep(2, length(qc)))
+    type <- c(type, rep("QC", length(qc)))
+  }
+  if(length(sample) > 0) { 
+    smp <- c(smp, sample);  
+    cols <- c(cols, rep(1, length(sample))) 
+    type <- c(type, rep("Sample", length(sample)))
+  }
+  if(length(blank) > 0) { 
+    smp <- c(smp, blank)  
+    cols <- c(cols, rep(4, length(blank)))
+    type <- c(type, rep("Blank", length(blank)))
+  }
+  
+  o <- order(smp)
+  smp <- smp[o]
+  cols <- cols[o]
+  type <- type[o]
+  
+  xdsub <- filterFile(xdata, file = smp)
+  bpis <- chromatogram(xdsub, aggregationFun = "max")
+  save(bpis, file = "datasets/chromatograms.Rdata")
+}
+
+maxint <- 0; for(i in 1:length(bpis@.Data)) {maxint <- max(maxint, max(bpis@.Data[[i]]@intensity, na.rm = TRUE))}
+bpc <- data.frame(
+  "file" = vector(length = 0), 
+  "type" = vector(length = 0),
+  "rt" = vector(length = 0),
+  "intensity" = vector(length = 0))
+for(i in 1:length(bpis@.Data)) {
+  rts <- bpis@.Data[[i]]@rtime
+  bpc.ints <- bpis@.Data[[i]]@intensity
+  bpc.tmp <- data.frame(
+    "file" = as.character(rep(i, length(rts))), 
+    "type" = rep(type[i], length(rts)),
+    "rt" = rts,
+    "intensity" = bpc.ints)
+  bpc <- rbind(bpc, bpc.tmp)
+}
+# sub <- bpc[which(bpc$file == "2"),]
+pl <- ggplot(bpc, aes(x = rt, y = intensity, group = file, color = type)) +
+  geom_line() + theme_minimal()
+plotly::ggplotly(pl)
+
+```
+
+
+## XCMS {.tabset .tabset-pills}
+XCMS (Smith 2006, Tautenhahn 2008) was used to process raw mass spectrometry data. XCMS functions to detect signal, filter noise, and align like signals across the sample set.  The resulting data is described as a set of features, where a feature is defined by a mass (mass to charge, or m/z, precisely) and retention time in seconds.  For each feature, a signal intensity value is returned, with signal intensity proportional to concentration within a feature.  Signal intensity can be used as a relative quantitative value within a given feature:  i.e. since the signal intensity has doubled for feature 'A' in treatment samples relative to control, we can conclude that the concentration has approximately doubled.  However, we cannot use singal intensities to compare features to each other:  i.e. we cannot say that since the signal intensity has doubled for feature 'A' releative to feature 'B' the concentration has approximately doubled. This is due to the fact that difference compounds/metabolites can generate different amounts of signal at the same concentration.  In mass spectrometry vernacular, two compounds are unlikely to have the same ionization efficiency, therefore their signal intensities are not comparable to each other.   
+
+### Methods
+XCMS was executed in the R environment using R version `r paste(R.Version()$version.string, R.Version()$arch)` and XCMS version `r paste(packageVersion('xcms'))`. The steps and parameters used are as follows:  
+`r paste(params)` 
+
+### Samples
+In total `r nrow(xdata@phenoData@data)` sample injections were performed.  `r if(nrow(xdata@phenoData@data)>50) {paste("A subset of the sample names are pasted below: ")} else {paste("The sample names are pasted below: ")}`   
+
+``` {r, xcmsSamples, include = TRUE, echo = FALSE, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE, eval = xcms} 
+d <- des[[1]]
+# if(nrow(d)>50) {d <- d[sample(1:nrow(d), 20),]}
+# d %>%
+#   kbl() %>%
+#   kable_styling(full_width = F, bootstrap_options = c("hover", "condensed", "responsive"))
+datatable(d, options = list(pageLength = 20))
+```
+
+### Features
+XCMS detected `r dim(fd)[1]` features. A feature is defined by its mass and retention time, each which is recorded with a certain error tolerance.  Features do not fully represent compounds - there is typically a many-to-one relationship between features and compounds. A random subset of 200 features out of the full feature list, which will be further aggregated into compounds, is depicted below, where mzmed = median mass to charge (m/z), mzmin and mzmax represent the range of mz values for that feature, rtmed is the median retention time (in seconds), with range defined by rtmin and rtmax.  npeaks = the number of times a feature was found in that sample.  Note that the peak can be found more than one time in each sample as we are performing peak detection in both MS and MS/MS data.  
+
+``` {r, xcmsFeatures, include = TRUE, echo = FALSE, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE, eval = xcms} 
+
+# f.sample <- sample(1:nrow(fd), 10)
+# fd[f.sample,] %>%
+#   kbl() %>%
+#   kable_styling(full_width = F, bootstrap_options = c("hover", "condensed", "responsive"))
+fd[,1:3] <- round(fd[,1:3], digits = 4)
+fd[,4:6] <- round(fd[,4:6], digits = 1)
+fdsub <- fd[sample(1:nrow(fd), 200),1:7]
+datatable(fdsub, options = list(pageLength = 20))
+
+```
+
+
+### Quality Control
+The features can be summarized by their properties - m/z, rentention time, and intensity. The plots below provide a graphical overview of the features at the dataset and the sample level.  The m/z distribution shows the frequency of observation in various mass bins. While not a quality descriptor, per se, this visualization can provides a useful overview of the ions generated from the sample set.   The retention time reflects chemistry: HILIC LC - non-polar metabolites elute early, polar later;  Reverse phase LC - polar metabolites elute early, non-polar later, GC - high volatily compounds elute early, low volatility later.   Some features will be found in every sample - others more rarely due to biological or other sources of variation. We would expect blank sample to have less signal than a sample from the sample set, and would expect the pooled quality control sample to have less variation in signal intensity than the samples do, since the QC sample should only be impacted by analytical variance, with the full sample set contains analytical, biological, and sample preparation variance.   
+
+``` {r, xcmsQC, include = TRUE, echo = FALSE, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE, eval = TRUE, fig.width=8, fig.height=12, fig.cap="\\label{fig:featureFig}Feature descriptions: A. Histogram of feature counts by m/z.  B.  Histogram of feature counts by retention time.  C. Histogram of feature counts by frequency of observation (in MS and/or MS/MS data).  D. Boxplot of histogram summed feature intensities for each class of sample.  E. Boxplot of feature log10-scaled feature intensities for each sample."} 
+
+p1 <- plotly::ggplotly(
+  ggplot(fd, aes(x = mzmed)) + geom_histogram(bins = 200) + xlab('mz') + 
+    theme_minimal()  + 
+    theme(plot.title = element_text(
+      face = "bold", family = "Arial")
+    ) + 
+    labs(title = "A.")
+)
+p2 <- plotly::ggplotly(
+  ggplot(fd, aes(x = rtmed)) + geom_histogram(bins = 200) + xlab('rt(sec)') + theme_minimal()  + 
+    theme(plot.title = element_text(
+      face = "bold") 
+    )+ 
+    labs(title = "B.")
+)
+p3 <- plotly::ggplotly(
+  ggplot(fd, aes(x = npeaks)) + geom_histogram(bins = max(fd$npeaks, na.rm = TRUE)) + 
+    xlab('npeaks') + theme_minimal() + 
+    theme(plot.title = element_text(
+      face = "bold") 
+    ) + 
+    labs(title = "C.")
+)
+
+is.ms <- grep("01.mzML", xdata@processingData@files)
+ints.ms <- ints[is.ms]
+
+pheno <- rep("sample", length(ints.ms))
+pheno[grep("QC", as.character(xdata@phenoData@data[,1]), ignore.case = TRUE)] <- "QC"
+pheno[grep("blank", as.character(xdata@phenoData@data[,1]), ignore.case = TRUE)] <- "Blank"
+
+sum.ints.ms <- sapply(1:length(ints.ms), FUN = function(x) {sum(ints.ms[[x]], na.rm = TRUE)})
+sum.ints.ms <- data.frame('sample.type' = pheno, "summed.intensity" = sum.ints.ms)
+smp <- vector(length = 0)
+for(x in 1:length(ints.ms)) {
+  smp <- c(smp, rep(paste(pheno[x], x, sep = "."), length(ints.ms[[x]])))
+}
+ints.ms <- unlist(ints.ms)
+fint <- data.frame('sample.n' = smp, 'intensity' = ints.ms)
+
+
+p4 <- plotly::ggplotly(
+  ggplot(sum.ints.ms, aes(x = sample.type, y = summed.intensity)) + 
+    geom_boxplot() +
+    theme_minimal() + 
+    theme(
+      axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,),
+      plot.margin = margin(c(2, 2, 2, 6)),
+      plot.title = element_text(
+        face = "bold", family = "Arial")) + 
+    labs(title = "D.")
+)
+p5 <- plotly::ggplotly(
+  ggplot(fint, aes(x=sample.n, y=intensity)) + 
+    geom_boxplot() +
+    theme_minimal() + 
+    theme(plot.title = element_text(
+      face = "bold"),
+      axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,))  + 
+    labs(title = "E.")
+) 
+# p5 <- p5 %>% layout(margin = list(l = 100, b =100, t = 100))
+s1 <- manipulateWidget::combineWidgets(p1, p2, nrow = 1)
+s2 <- manipulateWidget::combineWidgets(p3, p4, nrow = 1)
+sp <- manipulateWidget::combineWidgets(s1, s2, p5, nrow = 3)
+
+sp
+
+
+```
+
+### Citations
+1. Smith, C.A. and Want, E.J. and O'Maille, G. and Abagyan,R. and Siuzdak, G.: XCMS: Processing mass spectrometry data for metabolite profiling using nonlinear peak alignment, matching and identification, Analytical Chemistry, 78:779-787 (2006)  
+
+2. Ralf Tautenhahn, Christoph Boettcher, Steffen Neumann: Highly sensitive feature detection for high resolution LC/MS BMC Bioinformatics, 9:504 (2008)
+
+
+## RAMClustR {.tabset .tabset-pills}
+
+RAMClustR (Broeckling, 2014) is designed to group XCMS features which are likely derived from a single small molecule into a spectrum.  This process streamlines annotation, reduces analytical variance, and minimizes the false-discovery correction burden associated with highly multivariate datasets, metabolomics included. RAMClustR takes XCMS data as input to generate output including a aggregated dataset of reduced dimension, where each compound is represented by a spectrum derived from one or more XCMS features.  
+
+### Methods
+`r RC$history$input` `r RC$history$feature.filter.blanks` `r RC$history$replace.na` `r RC$history$normalize.batch.qc` `r RC$history$filter.features` `r RC$history$ramclustr`
+
+
+### Compounds
+RAMclustR combines features into spectra, which better represent individual compounds than do individual features.  This table provides some basic descriptions for the compounds detected.  Columns include the compound name - a placeholder which can be replaced once annotations have been completed, the retention time (in seconds), the median signal intensity, the coefficient of variance (standard deviation / mean) of the signal intensity in the pooled QC samples, and the number of XCMS features in the compound spectrum.   
+
+```{r ramclustrCompounds, include = TRUE, echo = FALSE, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE, eval = TRUE}
+cl.int <- apply(RC$SpecAbund, 2, "median")
+nfeat <- sapply(1:length(RC$cmpd), FUN = function(x) {
+  length(which(RC$featclus == x))
+}
+)
+cmpds <- data.frame(
+  "cmpd.name" = RC$cmpd,
+  "ret.time" = round(RC$clrt, digits = 1),
+  "median.signal.intensity" = round(cl.int, digits = 1),
+  "cmpd.cv" = round(RC$qc.cv.cmpd, digits = 3),
+  "n.features" = nfeat
+)
+datatable(cmpds, options = list(pageLength = 20))
+# cmpds[1:nc,] %>%
+#   kbl(row.names = FALSE) %>%
+#   kable_styling(full_width = F, bootstrap_options = c("hover", "condensed", "responsive"))
+
+```
+
+
+
+### Quality Control
+Features are processed into small molecule spectra.  This process involves normalization, filtering features that are quantitatively unreliable in the pooled QC samples, filtering features that are present in blank injections, and aggregation of feature signal intensities into compound signal intensities (see RAMClustR methods tab for deails).  These processes generally reduce the signal intensity coefficent of variance appreciably. These plots demontrate the distribution of CV values at the feature level (A) and the compound level (B).  The red points on the x-axis represent various quantiles - hover over these points to see the value and compare (for example) the 80% quantile CV for features vs. compounds.  Acceptability criteria is not precisely fixed, but generally one can expect that the 80th percentile CV should be below 0.3.  Compounds that have higher CV values possess higher analytical/processing variance, which will result in poor statistical sensitivity to experimental-design induced changes in concentration (i.e. treatment effects).  
+
+```{r ramclustrQC, include = TRUE, echo = FALSE, warning = F, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE, eval = TRUE, fig.width = 8, fig.cap="\\label{fig:ramclustrQC}Distribution of feature (A.) and compound (B.) coefficients of variation (CV) values in quality control samples.  Compound CV values are calcluated after normalization, filtering, and clustering of features into compound spectra."}
+x.qc <- grep("QC", xdata@phenoData@data[,1], ignore.case = TRUE)
+x.m <- apply(RC$MSdata_raw[x.qc,], 2, "mean", na.rm = TRUE)
+x.sd <- apply(RC$MSdata_raw[x.qc,], 2, "sd", na.rm = TRUE)
+x.cv <- x.sd/x.m
+ft.cv <- data.frame(
+  "signal.intensity" = x.m,
+  "feat.cv" = x.cv
+)
+x.qs.df <- round(quantile(x.cv, probs=seq(0,1,0.2), na.rm=TRUE), digits = 3)
+x.qs.df <- data.frame("quantile" = names(x.qs.df), "cv" = x.qs.df)
+
+c.qs.df <- round(quantile(cmpds$cmpd.cv, probs=seq(0,1,0.2), na.rm=TRUE), digits = 3)
+c.qs.df <- data.frame('quantile' = names(c.qs.df), 'cv' = c.qs.df)
+cv.rg <- c(0, 1.03) * range(c(x.cv, cmpds$cmpd.cv), na.rm = TRUE)
+p1 <- ggplot(ft.cv, aes(x = feat.cv)) + geom_histogram(bins = 200) + xlab('cv') + 
+  theme_minimal()  + 
+  theme(
+    plot.title = element_text(face = "bold", size = 10)
+  ) + 
+  xlim(cv.rg) + 
+  ylab("frequency") + 
+  labs(title = "A. features (raw signal)") +
+  geom_point(data = x.qs.df, 
+             aes(x = cv, 
+                 y = 0,
+                 label = quantile,
+             ),
+             show.legend = FALSE,
+             color = "red",
+             size = 1)
+
+p1 <- plotly::ggplotly(p1)
+
+
+p2 <- ggplot(cmpds, aes(x = cmpd.cv)) + geom_histogram(bins = 200) + xlab('cv') + 
+  theme_minimal()  + 
+  theme(
+    plot.title = element_text(face = "bold", size = 10)
+  ) + 
+  xlim(cv.rg) + 
+  ylab("frequency") +
+  labs(title = "B. compounds (filtered, normalized)") +
+  geom_point(data = c.qs.df, 
+             aes(x = cv, 
+                 y = 0, 
+                 label = quantile
+             ),
+             show.legend = FALSE,
+             color = "red",
+             size = 1)
+
+p2 <- plotly::ggplotly(p2)
+
+s1 <- manipulateWidget::combineWidgets(p1, p2, nrow = 1)
+s1
+
+rm(p1); rm(p2); rm(s1)
+```
+
+Pooled quality control samples are generated by taking a small aliquot of each sample extract and pooling this into one sample.  This pooled sample is then subdivided into many small aliquots to run throughout the dataset. Any variation obseved in replicate injections of the pooled QC sample represents analytical and data processing induced variance, while the full sample set will additionally contain biological (sample-to-sample) variance.  Principle component analysis of the QC samples in the presence of the samples in the full set would be expected to result in QC samples near the center of the plot with smaller scatter than the full sample set.  Precisely how small this scatter is relative to the full sample set is dependent both on how much variance there is in the QC data (as depicted by the histograms above) but also by how much variance there is in the biological sample set.  The plot below depict the QC samples co-plotted with the full sample set in PCA space.   The table to the right provides the numeric values for each principle component (PC) including raw standard deviation, percent variance explained by each PC, the cumulative percent variance explained by all PCs above that row, and the ratio of the standard deviation of the PC scores for QC samples to that of the remaining samples.  This ratio will be 1 when the variance in QC samples is as high as in samples - ratios of 1 or more likely represent PCs explaining analytical noise.  Values << 1 represent PCs likely to contain variance descriptive of genuine sample-to-sample variance. A lack of separation of the QC samples from the larger sample distribution suggests that the analytical variance is similar to biological variance, which will make detection of biological effects challenging. 
+
+```{r ramclustrQCPCA, include = TRUE, echo = FALSE, message = FALSE, cache = FALSE, eval = TRUE, fig.width = 8, fig.height = 16, fig.cap="\\label{fig:ramclustrQCPCA}Interactive PCA plot displaying the distribution of QC samples relative the full sample set. PC axes can be selected by the user by clicking on the box.  Below is a table with quantitative descriptions of the PCs - the length of this table is capped at 12. Note that the PCA analysis is for QC examination purposes only."}
+
+## fit PC on samples, predict PC space for QC
+# d.pc <- scale(RC$SpecAbund, center = T, scale = sqrt(apply(RC$SpecAbund, 2, FUN = "sd")))
+# qc.pc <- scale(RC$qc$SpecAbund, center = T, scale = sqrt(apply(RC$qc$SpecAbund, 2, FUN = "sd")))
+# samp.pc <- prcomp(d.pc, center = FALSE, scale = FALSE)
+# sum.samp.pc <- summary(samp.pc)
+# qc.pc <- predict(samp.pc, newdata = qc.pc)
+# pred.samp.pc <- predict(samp.pc, newdata = d.pc)
+# {
+#   plot(samp.pc$x[, c(1:2)])
+#   points(pred.samp.pc[,c(1:2)], col = 3)
+#   points(qc.pc[,c(1:2)], col = 2, pch = 19)
+# }
+
+d.pc <- rbind(RC$qc$SpecAbund, RC$SpecAbund)
+d.pc <- scale(d.pc, center = T, scale = sqrt(apply(d.pc, 2, FUN = "sd")))
+
+p.pc <- rbind(RC$qc$phenoData, RC$phenoData)
+p.pc <- data.frame(p.pc, "sample.type" = c(rep("QC", nrow(RC$qc$phenoData)), rep("sample", nrow(RC$phenoData))))
+p.pc <- p.pc[,c("sample.type"), drop = FALSE]
+
+
+pc <- summary(prcomp(d.pc, scale = FALSE))
+
+qc.sd <- apply(pc$x[which(p.pc$sample.type == "QC"),],2,"sd")
+smp.sd <- apply(pc$x[which(p.pc$sample.type == "sample"),],2,"sd")
+sd.ratio <- round(qc.sd/smp.sd, digits = 3)
+sd.ratio <- data.frame(sd.ratio)
+f.test.pval <- sapply(1:nrow(sd.ratio), FUN = function(x) {
+  f.res <- var.test(
+    pc$x[which(p.pc$sample.type == "QC"),x], 
+    pc$x[which(p.pc$sample.type == "sample"),x], 
+    alternative = "less")
+  f.res$p.value
+}
+)
+f.test.pval <- round(f.test.pval, digits = 3)
+pc.summary <- t(pc$importance)
+dimnames(pc.summary)[[2]] <- c("sd", "per.var", "cum.perc.var")
+pc.summary[,1:3] <- round(100 * pc.summary[,1:3], digits = 2)
+pc.summary <- data.frame(pc.summary, "qc.ratio" = sd.ratio, "p.val" = f.test.pval)
+pc.summary <- pc.summary[1:min(12, nrow(pc.summary)),]
+
+
+pc.scores <- pc$x
+pc.colors <- p.pc
+pc.data <- cbind(pc.scores, pc.colors)
+
+p1 <- plotlyutils::selectable_scatter_plot(pc.scores, colours = pc.colors)
+p2 <- datatable(pc.summary, options=list(pagelength = 20))
+
+s1 <- manipulateWidget::combineWidgets(p1, p2, nrow = 2)
+s1
+rm(p1); rm(p2); rm(s1); rm(pc.summary); rm(p.pc); rm(pc)
+```
+
+
+
+
+### Citations
+1. Broeckling CD, Afsar FA, Neumann S, Ben-Hur A, Prenni JE. RAMClust: a novel feature clustering method enables spectral-matching-based annotation for metabolomics data. Anal Chem. 2014. 86(14):6812-7.
+
+2. Broadhurst, DI, Kell DB. Statistical strategies for avoiding false discoveries in metabolomics and related experiments.  Metabolomics. 2006. 2:171–196.
+
+## Annotation {.tabset .tabset-pills}
+Adducts, isotopes, and in-source fragmentation contribute to complexity in the spectrum of signals in a manner which is not always predictable.   RAMClustR groups features into spectra in an unsupervised manner, but grouping of features is only recognition of a common origin, not the identity of the molecule that gave rise to those features.  We utilize an approach which passes through several steps to annotate these spectra.  The first step is to infer the molecular weight of the compound which gives rise to the observed mass spectrum - this is performed using an R package called InterpretMSSpectrum.  The second step utilizes a program called MSFinder, which infers putative molecular formula and structure.  These results are imported and aggregated into a final table.  
+
+### InterpretMSSpectrum {.tabset .tabset-pills}
+InterpretMSSpectrum looks for patterns in the mass values of the spectra - spacing of approximately 1 m/z unit (Dalton - Da) are likely to represent isotopes of a singly charges (z = 1) spectrum.  Spacing of ~ 22 Da represents a possible difference between sodium and proton adducts.  These patterns are used to inform on the most probably molecular weight of the compound. 
+
+#### Methods
+`r RC$history$do.findmain`
+
+#### Results
+InterpretMSSpectrum infers plausible molecular weights based on patterns in mass values.  the plot below contains data for the first 40 compounds in the dataset.  m/z values with interpreted ion identity are labelled as at the top of the peak.  You can select which (one or more) spectra to plot by clicking on the legend: 
+
+```{r interpretMSSpectrum, include = TRUE, echo = FALSE, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE, eval = TRUE, fig.width = 8, fig.cap="\\label{fig:ramclustrQCPCA}First 20 spectra in dataset: intepretMSSpectrum molecular weight inference.  Only first twenty are shown here, the remaining can be viewed in a separate PDF document."}
+sp <- data.frame("cmpd" = rep("C0001", nrow(RC$M.ann[[1]])), RC$M.ann[[1]], check.names = FALSE)
+for(i in 2:40) {
+  tmp <- data.frame("cmpd" = rep(RC$cmpd[i], nrow(RC$M.ann[[i]])), RC$M.ann[[i]])
+  sp <- rbind(sp, tmp)
+}
+# sp$mz <- as.factor(sp$mz)
+
+pl <- plotly::ggplotly(
+  ggplot(sp, aes(x = mz, y = int, col = cmpd, name = label)) +
+    geom_segment(x= sp$mz, y = sp$int, xend = sp$mz, yend = 0, show.legend = TRUE) +
+    geom_text(aes(label = label), nudge_y = 1, hjust = 0) +
+    theme_minimal() # +
+  # guides(fill=guide_legend(ncol=2))
+)
+for(i in 2:length(pl$x$data)) {
+  pl$x$data[[i]]$visible <- 'legendonly'
+}
+
+pl
+```
+
+### MSFinder {.tabset .tabset-pills}
+Inference of the molecular weight of the compound enables a more focused interpretation of the spectral content.  RAMClustR filters the spectra to keep only those signals below the inferred adduct m/z value.   The MS and MS/MS spectra are written to a format called .mat, which is read by MSFinder.  MSFinder does not utilize any of the interpreted data from interpretMSSpectrum with the exception of the molecular weight.   MSFinder performs annotation in two steps: inference of the molecular formula and assignment of structure within that formula, based on compounds in relevent databases.  
+
+#### Methods
+
+`r RC$history$msfinder` 
+
+#### Results
+
+```{r msfinderRestuls, include = TRUE, echo = FALSE, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE, eval = TRUE, fig.width = 8, fig.cap="\\label{fig:ramclustrQCPCA}MSFinder score distribution, and 3 randomly selected MSFinder match spectra with annotations.  The full MSFinder results can be explored by using the freely available MSFinder program, and importing the results on your local computer."}
+total.score <- sapply(1:length(RC$cmpd), FUN = function(x) {
+  
+  if(is.null(dim(RC$msfinder.summary[[x]]))) {
+    return(NA)
+    next
+  }
+  if(is.null(RC$msfinder.summary[[x]][1,"msfinder.totalscore"])) {
+    return(NA)
+    next
+  } 
+  {
+    RC$msfinder.summary[[x]][1,"msfinder.totalscore"]
+  }
+}
+)
+
+
+sq <- round(quantile(total.score, probs=seq(0,1,0.05), na.rm=TRUE), digits = 3)
+
+do <- c( sample(which(total.score > sq["85%"] & total.score < sq["100%"]),1), 
+         sample(which(total.score > sq["45%"] & total.score < sq["55%"]),1),
+         sample(which(total.score > sq["0%"] & total.score < sq["15%"]),1)
+)
+plots <- as.list(rep(NA, length(do)))
+
+for(i in 1:length(do)) {
+  # use <- which(RC$msfinder.structure.details[[do[i]]][[very.high[2]]]$structure$id == very.high[3])
+  sp <- RC$M.ann.findmain[[do[i]]]
+  form <- RC$msfinder.summary[[do[i]]][1,"formula"]
+  inch <- RC$msfinder.summary[[do[i]]][1,"id"]
+  frag <- RC$msfinder.structure.details[[do[i]]][[form]]$fragments[[inch]] 
+  for(j in 1:nrow(frag)) {
+    m <- which(abs(sp$mz - as.numeric(frag$M.Z[j])) < 0.02)
+    if(is.na(sp$label[m])) sp$label[m] <- {
+      paste0(frag$Formula[j], ", H", frag$RearrangedHydrogen[j], ", ", frag$PPM[j], "ppm")
+    }
+  }
+  p.sp <- ggplot(sp, aes(x = mz, y = int, label = label)) +
+    geom_col(width = 0.5) +
+    geom_text(size = 3, hjust = 0, vjust = 0) +
+    ggtitle(paste0(RC$cmpd[do[i]], " : msfinder.score =", round(total.score[do[i]]), digits=2), subtitle = RC$ann[do[i]]) +
+    theme_minimal()
+  if(i == 1) p2 <- p.sp
+  if(i == 2) p3 <- p.sp
+  if(i == 3) p4 <- p.sp
+}
+
+total.score = data.frame(total.score)
+p1 <- ggplot(total.score, aes(x = total.score)) + geom_histogram(bins = 100) + xlab('MSFinder Total Score') + 
+  theme_minimal()  + 
+  theme(
+    plot.title = element_text(face = "bold", size = 10)
+  ) + 
+  ylab("frequency") 
+
+s1 <- suppressWarnings(manipulateWidget::combineWidgets(plotly::ggplotly(p1), plotly::ggplotly(p2), nrow = 1))
+s2 <- suppressWarnings(manipulateWidget::combineWidgets(plotly::ggplotly(p3), plotly::ggplotly(p4), nrow = 1))
+sp <- suppressWarnings(manipulateWidget::combineWidgets(s1, s2, nrow = 2))
+sp
+
+```
+
+
+### Annotation summary
+
+#### Methods
+
+`r RC$history$annotate` `r RC$history$annotate2` 
+
+#### Results
+
+The annotation output can be summarized as a table, as depicted below.  A full output table can be found in the directory 'spectra/annotationSummary.csv'.  
+
+```{r annotationSummary, include = TRUE, echo = FALSE, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE, eval = TRUE, fig.width = 8, fig.cap="\\label{fig:ramclustrQCPCA}MSFinder score distribution, and randomly selected MSFinder match spectra with annotations"}
+
+out<- data.frame("cmpd" = RC$cmpd,
+                 "rt" = RC$clrt,
+                 "annotation" = RC$ann,
+                 "ann.confidence" = RC$annconf,
+                 "median signal" = as.vector(apply(RC$SpecAbund, 2, "median", na.rm = TRUE))) 
+
+if(any(names(RC) == "cmpd.use")) {
+  out<- data.frame(out, "qc.cv.acceptable" = RC$cmpd.use)
+}
+if(any(names(RC) == "qc.cv.cmpd.full")) {
+  out<- data.frame(out, "qc.cv" = RC$qc.cv.cmpd.full)
+}
+
+if(any(names(RC) == "M")) {
+  out<- data.frame(out, "inferred M" = RC$M)
+}
+if(any(names(RC) == "zmax")) {
+  out<- data.frame(out, "zmax" = RC$zmax)
+}
+if(any(names(RC) == "msfinder.formula")) {
+  out<- data.frame(out, "MSFinder inferred formula" = RC$msfinder.formula)
+}
+if(any(names(RC) == "inchikey")) {
+  out<- data.frame(out, "inchikey" = RC$inchikey)
+}
+if(any(names(RC) == "inchi")) {
+  if(any(names(RC) == "pubchem")) {
+    if((any(names(RC$pubchem) == "properties"))) {
+      if((any(names(RC$pubchem$properties) == "InChI"))) {
+        r.inch <- which(is.na(RC$inchi))
+        if(length(r.inch) > 0) {
+          RC$inchi[r.inch] <- RC$pubchem$properties[r.inch,"InChI"]
+        }
+      }
+    }
+  }
+  out<- data.frame(out, "inchi" = RC$inchi)
+}
+if(any(names(RC) == "hmdb.url")) {
+  # out<- data.frame(out, "hmdb.url" = paste0("<a href='", ramclustObj$hmdb.url, "'>", ramclustObj$hmdb.name, "</a>")) 
+  out<- data.frame(out, "hmdb.url" = RC$hmdb.url)
+}
+if(any(names(RC) == "lm.url")) {
+  out<- data.frame(out, "lm.url" = RC$lm.url)
+}
+if(any(names(RC) == "pubchem.url")) {
+  if(any(names(RC) == "pubchem")) {
+    if((any(names(RC$pubchem) == "pubchem"))) {
+      if((any(names(RC$pubchem$properties) == "pubchem.url"))) {
+        r.pcurl <- which(is.na(RC$pubchem.url))
+        if(length(r.pcurl) > 0) {
+          RC$inchi[r.pcurl] <- RC$pubchem$properties[r.pcurl,"pubchem.url"]
+        }
+      }
+    }
+  }
+  out<- data.frame(out, "pubchem.url" = RC$pubchem.url)
+}
+if(any(names(RC) == "chebi.url")) {
+  out<- data.frame(out, "chebi.url" = RC$chebi.url)
+}
+if(any(names(RC) == "synonyms")) {
+  if(any(names(RC) == "pubchem")) {
+    if((any(names(RC$pubchem) == "synonyms"))) {
+      r.syn <- which(is.na(RC$synonyms))
+      if(length(r.syn) > 0) {
+        for(z in r.syn) {
+          RC$synonyms[[z]] <- RC$pubchem$synonyms[[z]]
+        }
+      }
+    }
+  }
+  out<- data.frame(out, "synonyms" = sapply(1:length(RC$synonyms), 
+                                            FUN = function(x) {
+                                              paste(RC$synonyms[[x]], collapse = " __ ")
+                                            }))
+}
+
+ann.out <- out
+out <- out[1:50,]
+datatable(out, options = list(pageLength = 10))
+
+
+```
+
+
+## Statistics {.tabset .tabset-pills}
+
+### PCA {.tabset .tabset-pills}
+Principle component analysis is an unsupervised multivariate visualization approach.  The 'unsupervised' nature of this tool makes it exceptionally valuable for assessing high-dimensionality data with relatively few samples - a condition prone to generating overfitted data with 'supervised' approaches.   PCA thereby gives a broadly unbiased view of the variation in the samples set at the metabolome level - the resulting scores plot is impacted by the quantitative levels of every metabolite detected in each sample.   The visiualization is not meant to be a statistical comparison, but rather an overview of the differences between samples.   In PCA, several 'PCs' - principle components - are fitted.   The number of pricinciple components is selected algorithmically, and you can plot any two PCs against each other to explore which PCs explain variance relevent to your comparisons of interest.   
+
+#### Methods
+`r RC$history$PCA.main`  `r RC$history$PCA.npc`  `r RC$history$PCA.anova`
+
+#### Results 
+
+```{r exp.des.PCA, include = TRUE, echo = FALSE, message = FALSE, cache = FALSE, eval = TRUE, fig.width = 8, fig.height = 16, fig.cap="\\label{fig:ramclustrQCPCA}Interactive PCA plot of all experimental samples. PC axes can be selected by the user by clicking on the box.  Beneath is a table with quantitative descriptions of the PCs."}
+
+
+des <- getData(RC)[[1]]
+d.pc <- RC$pca$x
+var.levels <- sapply(1:ncol(des), FUN = function(x) length(unique(des[[x]])))
+var.use <- which(var.levels>1 & var.levels < nrow(des))
+if(length(var.use) == 0) var.use <- 1:ncol(des)
+pc.vars <- cbind(des[,var.use])
+
+pc.summary <- t(summary(RC$pca)$importance)
+dimnames(pc.summary)[[2]] <- c("sd", "per.var", "cum.perc.var")
+pc.summary[,1:3] <- round(100 * pc.summary[,1:3], digits = 2)
+#  pc.summary <- data.frame(pc.summary, "qc.ratio" = sd.ratio, "p.val" = f.test.pval)
+pc.summary <- pc.summary[1:min(100, nrow(pc.summary)),]
+
+p11 <- plotlyutils::selectable_scatter_plot(d.pc, colours = pc.vars)
+p12 <- datatable(pc.summary, options=list(pagelength = 20))
+
+s10 <- manipulateWidget::combineWidgets(p11, p12, nrow = 2)
+s10
+```
+
+
+### ANOVA {.tabset .tabset-pills} 
+Analysis of variance is a basic statistical approach to determine the probability that samples from two or more groups are derived from a single statistical 'population'.  Probability p-values are returned, and a 'signficant' p-value indicates that the observed distribution of values is from more than one group.   In this way, we can use ANOVA p-value as a way to determine whether the levels of a variable have changes in response to the imposed experimental design.  
+
+#### Methods
+`r RC$history$anova` `r RC$history$anova4` `r RC$history$anova7`
+
+#### Results
+ANOVA results are reported here in tabular format.  Up to 500 of the most significant pvalues are reported here.  The full list can be found in the anova/ directory as a .csv file.  
+
+```{r ANOVA, include = TRUE, echo = FALSE, fig.keep = 'none', results = 'keep', message = FALSE, cache = FALSE, eval = TRUE, fig.width = 8, fig.cap="\\label{fig:ramclustrQCPCA}Interactive PCA plot of all experimental samples. PC axes can be selected by the user by clicking on the box.  On the right is a table with quantitative descriptions of the PCs - the length of this table is capped at 12."}
+
+anova.results <- grep('anova', names(RC))
+anova.summary <- t(RC[[max(anova.results)]])
+for(i in 1:ncol(anova.summary)) {
+  anova.summary[,i] <- round(anova.summary[,i], digits = 6)
+}
+p.min <- sapply(1:nrow(anova.summary), FUN = function(x) min(anova.summary[x,]))
+is.sig <- which(p.min < 0.05)
+if(length(is.sig) < 100) {
+  use <- order(p.min)[1:100]} else {
+    use <- order(p.min)[1:500]
+  }
+
+out.table <- anova.summary
+dimnames(out.table)[[2]] <- paste0("pval.", dimnames(out.table)[[2]])
+rm.cols <- c(1, which(names(ann.out) == "inchikey.1"), which(names(ann.out) == "description"))
+out.table <- cbind(out.table, ann.out[,-rm.cols])
+
+for(i in 1:ncol(anova.summary)) {
+  on.factor <- dimnames(anova.summary)[[2]][i]
+  if(grepl("-", on.factor)) next
+  if(grepl(":", on.factor)) {
+    on.factor <- unlist(strsplit(on.factor, ":"))
+    on.factor <- apply(des[,on.factor], 1, "paste", collapse = ".")
+  } else {
+    on.factor <- des[,on.factor]
+  }
+  cmpd.levs <- aggregate(RC$SpecAbund[,1:ncol(RC$SpecAbund)], by = list(on.factor), FUN = "mean")
+  cmpd.levs <- data.frame(t(cmpd.levs))
+  lev.names <- cmpd.levs[1,]
+  cmpd.levs <- data.frame(cmpd.levs[-1,])
+  dimnames(cmpd.levs)[[2]] <- paste(dimnames(anova.summary)[[2]][i], lev.names, sep = ".")
+  for(j in 1:ncol(cmpd.levs)) {
+    cmpd.levs[,j] <- round(as.numeric(cmpd.levs[,j]), digits = 1)
+  }
+  out.table <- cbind(out.table, cmpd.levs)
+}
+
+p1 <- datatable(out.table[use,], options=list(pagelength = 50))
+p1
+```

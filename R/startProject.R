@@ -21,7 +21,7 @@ startProject<-function (
   randomize=TRUE,
   stack = FALSE,
   prep.blanks = 3,
-  LTR = FALSE,
+  LTR = 0,
   remove.invariant.factors = TRUE,
   destination.dir = "R:/RSTOR-PMF/Projects/", # 
   sub.project.name = NULL  ## add optional subproject.name
@@ -521,9 +521,13 @@ startProject<-function (
     }
   }
   
-  # nb <- ceiling(nrow(smp)/prep.batch.size)
   
+  
+  ## determine number of prep batches
   n.prep.batches <- ceiling(nrow(smp)/(prep.batch.size-prep.blanks))
+  
+  
+  ## assign prep batch
   prep_batch <- vector(length = 0, mode = "integer")
   for(i in 1:n.prep.batches) {prep_batch <- c(prep_batch, rep(i, (prep.batch.size - prep.blanks)))}
   prep_batch <- prep_batch[1:nrow(smp)]
@@ -541,19 +545,19 @@ startProject<-function (
     samples, stringsAsFactors = FALSE
   )
   
-  
+  ## add prep blanks for each prep batch:
   for(i in 1:n.prep.batches) {
+    available.order <- smp$prep_order[which(smp$prep_batch == i)]
     prep.blank.rows <- smp[0,,drop = TRUE]
     prep.blank.rows[1,] <- "prep.blank"
     prep.blank.rows$prep_batch[1] <- i
-    prep.blank.rows$prep_order[1] <- sample(1:prep.batch.size, 1)
     for(j in 1:prep.blanks) {
+      prep.blank.rows$prep_order[1] <- sample(available.order, 1)
       smp <- rbind(smp, prep.blank.rows)
     }
   }
   
   ## assign final prep order: 
-  
   prep.order <- smp$prep_order
   max.order <- 0
   for(i in 1:n.prep.batches) {
@@ -565,13 +569,12 @@ startProject<-function (
   prep.order <- as.numeric(prep.order)
   smp$prep_order <- prep.order
   
-  
-  ## write prep instructional .csv  
-  
+  ## write prep .csv  
   smp <- smp[order(smp$prep_batch),]
   smp <- smp[order(smp$prep_order),]
   write.csv(smp[,-grep("run_", names(smp))], file = "prep.sample.list.csv", row.names = FALSE)
   
+  ## get project name and shorten for convenience
   projname<-d["Service id:",1]
   tmp<-unlist(strsplit(projname, "-"))
   short.projectname <- paste(tmp[length(tmp)-1], tmp[length(tmp)], sep = "-")
@@ -583,14 +586,15 @@ startProject<-function (
   ## which platforms are we using? 
   doplatforms<-which(platforms[,2])
   smp.backup <- smp
+  
   ## for each platform
   for(x in doplatforms) {
     
+    ## create dir name, create dir, and move into that directory
     setwd(projdir)
     platform.dir <- paste0(projdir, platforms[x,1], "/")
     dir.create(platform.dir)
     setwd(platform.dir)
-    
     smp <- smp.backup
     
     ## build sequence for output
@@ -604,6 +608,7 @@ startProject<-function (
     qc <- out
     qc[1,] <- "qc"
     
+    ## determine run batch size, accounting for solvent blanks and long term reference samples
     rbc <- run.batch.size - LTR - solvent.blanks
     qc.rows <- c( (LTR + solvent.blanks + 1), 
                   seq((1 + QC + LTR + solvent.blanks), 96-LTR-solvent.blanks-QC, QC),
@@ -629,6 +634,8 @@ startProject<-function (
     }
 
     nonsample.rows <- sort(c(ltr.rows, solvent.blank.rows, qc.rows))
+    
+    ## move samples to sequence
     while(nrow(smp) > 0) {
       
       if(on.batch.row %in% nonsample.rows) {
@@ -679,55 +686,6 @@ startProject<-function (
       out[do,] <- tmp
     }
     
-    
-    # 
-    # on.row <- nrow(out)
-    # qc.rows <- seq(on.row+1, run.batch.size, QC)
-    # 
-    # 
-    # if(max(qc.rows) < run.batch.size) qc.rows <- c(qc.rows, run.batch.size)
-    # too.close <- run.batch.size - qc.rows
-    # too.close <- which(too.close > 0 & too.close < 3)
-    # if(length(too.close) > 0) {
-    #   qc.rows <- qc.rows[-too.close]
-    # }
-    # out[qc.rows,] <- qc
-    # 
-    # smp.backup <- smp
-    # out.batch <- out
-    # out.template <- out.batch
-    # out <- out[0, , drop = FALSE]
-    # available.rows <- which(is.na(out.template[,1]))
-    # n.batches <- ceiling(nrow(smp)/(length(available.rows)-solvent.blanks))
-    # for(i in 1:n.batches) {
-    #   out.batch <- out.template
-    #   available.rows <- which(is.na(out.batch[,1]))
-    #   sb.lines <- sample(available.rows, solvent.blanks)
-    #   out.batch[sb.lines,] <- solvent.blank
-    #   available.rows <- which(is.na(out.batch[,1]))
-    #   remaining.samples <- min(nrow(smp), length(available.rows))
-    #   out.batch[available.rows[1:remaining.samples],] <- smp[1:remaining.samples,]
-    #   smp <- smp[-(1:remaining.samples),]
-    #   if(i ==1) {from.order <- 1} else {from.order <- max(out$run_order)+1}
-    #   out.batch$run_order <- from.order:(from.order+run.batch.size-1)
-    #   out.batch$run_batch <- i
-    #   out <- rbind(out, out.batch)
-    # }
-    # 
-    # if(any(is.na(out[,1]))) {
-    #   out <- out[-(which(is.na(out[,1]))[1]:nrow(out)),]
-    #   if(out[nrow(out),1] != "qc") {
-    #     out <- rbind(out, qc)
-    #     out[nrow(out),"run_order"] <- 1+ as.numeric(out[nrow(out)-1,"run_order"])
-    #     out[nrow(out),"run_batch"] <- out[nrow(out),"run_batch"]
-    #   }
-    # }
-    
-    # 
-    # for(i in 1:n.prep.batches) {
-    #   do <- which(smp$prep_batch == i)
-    #   smp$prep_order[do] <- 1:length(do)
-    # }
 
     # create factor labels and names based on smp input
     flabs <- c(paste0("fact", 1:ncol(smp), "name"))
@@ -757,8 +715,6 @@ startProject<-function (
     #create ExpDes object for saving to disk and using in RAMClustR processing
     ExpDes<-list(Experiment, instrument)
     names(ExpDes)<-c("design", "instrument")
-    # dir.create(platforms[x,1])
-    # setwd(platforms[x,1])
     save(ExpDes, file="ExpDes.Rdata")
     dir.create("R_scripts")
     
@@ -778,7 +734,7 @@ startProject<-function (
       out
     )
     
-    
+    ## if using stacked injections, dublicate rows for stacking sequence
     if(stack) {
       
       smpstack<-out
@@ -792,6 +748,7 @@ startProject<-function (
       rm(tmp)
     }
     
+    ## write sequence file
     write.csv(out, file="sequence.csv", row.names=FALSE)
     setwd(projdir)
   }
