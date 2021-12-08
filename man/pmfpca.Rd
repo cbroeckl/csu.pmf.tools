@@ -9,10 +9,12 @@ pmfpca(
   which.data = "SpecAbund",
   scale = "pareto",
   subset = c(""),
+  subset.cmpd = c(),
   which.factors = NULL,
   num.factors = NULL,
   label.by = "cmpd",
   npc = "auto",
+  bw = FALSE,
   ag.summary.plot = FALSE
 )
 }

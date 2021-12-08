@@ -19,7 +19,8 @@ pmfanova(
   p.adj = "BH",
   which.quan = NULL,
   filter = TRUE,
-  summary.statistics = TRUE
+  summary.statistics = TRUE,
+  output.summary = TRUE
 )
 }
 \arguments{
@@ -50,6 +51,8 @@ pmfanova(
 \item{filter}{logical, TRUE by default. when $cmpd.use slot is present (from rc.cmpd.filter.cv function), only cmpds that passed cv filtering are used. If you wish to change that behavior, rerun the rc.cmpd.filter.cv function with a really high CV threshold.}
 
 \item{summary.statistics}{logical, TRUE by default.  If true, calculate mean and standard deviation for each level as defined by the anova.call model.}
+
+\item{output.summary}{logical, TRUE by default.  If true, saves full model results for all ANOVA as .Rdata file, and exports all summaries to a .txt file.}
 
 \item{which.quan;}{chracter vector.  which factors should be interpreted as quantitative?  i.e. c("time", "dose")}
 }

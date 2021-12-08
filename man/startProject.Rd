@@ -11,7 +11,7 @@ startProject(
   randomize = TRUE,
   stack = FALSE,
   prep.blanks = 3,
-  LTR = FALSE,
+  LTR = 0,
   remove.invariant.factors = TRUE,
   destination.dir = "R:/RSTOR-PMF/Projects/",
   sub.project.name = NULL
