@@ -172,6 +172,7 @@ pmfpca<-function(ramclustObj=RC,
   
   # pc <- prcomp(d[[]]) #original
   full.data <- data.frame(d[[1]][,which.factors], d[[2]], stringsAsFactors = TRUE)
+  dimnames(full.data)[[2]][1:length(which.factors)] <- which.factors
   for(i in 1:length(which.factors)) {
     full.data[,i] <- as.factor(full.data[,i])
   }
