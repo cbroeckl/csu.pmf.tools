@@ -397,21 +397,25 @@ pmfanova<-function(ramclustObj=RC,
     for(i in 1:length(ramclustObj$cmpd)) {
       tmp <- template
       m <- aggregate(as.formula(f), data = dat, FUN = "mean")
+      md <- aggregate(as.formula(f), data = dat, FUN = "median")
       s <- aggregate(as.formula(f), data = dat, FUN = "sd")
       se <- aggregate(as.formula(f), data = dat, FUN = function(x) sd(x)/sqrt(length(x)))
       for(j in fact.names) {
         tmp[1:nrow(m),j] <- m[1:nrow(m),j]
       }
       tmp[,"cmpd"] <- ramclustObj$cmpd[i]
+      tmpmd <- tmp
       tmps <- tmp
       tmpse <- tmp
       tmp[, "statistic"] <- "mean"
+      tmpmd[, "statistic"] <- "median"
       tmps[,"statistic"] <- "sd"
       tmpse[,"statistic"] <- "se"
       tmp[,"value"] <- m[,ncol(m)]
+      tmpmd[,"value"] <- md[,ncol(md)]
       tmps[,"value"] <- s[,ncol(s)]
       tmpse[,"value"] <- se[,ncol(se)]
-      tmp <- rbind(tmp, tmps, tmpse)
+      tmp <- rbind(tmp, tmpmd, tmps, tmpse)
       out <- rbind(out, tmp)
     }
     write.csv(out, file = paste0("stats/anova/", anova.name, "/summary.statistics.csv"), row.names = FALSE)
