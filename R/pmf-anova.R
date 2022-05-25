@@ -395,6 +395,15 @@ pmfanova<-function(ramclustObj=RC,
     out <- data.frame(matrix(nrow = 0, ncol = length(n))); names(out) <- n
     template <- out
     for(i in 1:length(ramclustObj$cmpd)) {
+      f <- paste(ramclustObj$cmpd[i], "~", anova.call)
+      if(grepl("|", f, fixed = TRUE)) {
+        f <- unlist(strsplit(f, "+", fixed = TRUE))
+        for(i in length(f):1) {
+          if(grepl("|", f[i], fixed = TRUE)) {
+            f <- f[-i]
+          }
+        }
+      }
       tmp <- template
       m <- aggregate(as.formula(f), data = dat, FUN = "mean")
       md <- aggregate(as.formula(f), data = dat, FUN = "median")
