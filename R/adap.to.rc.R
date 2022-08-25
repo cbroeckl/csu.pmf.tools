@@ -18,12 +18,12 @@
 #' 
 
 adap.to.rc <- function(
-  seq = NULL,
-  spec.abund = NULL,
-  msp = NULL,
-  annotations = NULL,
-  mzdec = 0,
-  min.score = 700,
+  seq = NULL,  # seq <- 'seq.csv'
+  spec.abund = NULL,  # spec.abund = 'CSV.csv'
+  msp = NULL,  # msp = 'MSP.msp'
+  annotations = NULL, # annotations = 'advanced_export.xlsx'
+  mzdec = 0, # mzdec = 1
+  min.score = 700, 
   manual.name = TRUE,
   qc.tag = "qc",
   blank.tag = "blank"
@@ -160,7 +160,7 @@ adap.to.rc <- function(
     ann[i] <- use$Compound.Name[1]
     adap.score[i] <- use$Fragmentation.Score.by.matching.with.Experimental.spectra[1]
   }
-  ann <- sapply(1:length(ann), FUN = function(x) trimws(unlist(strsplit( ann[x], "]"))[2]))
+  # ann <- sapply(1:length(ann), FUN = function(x) trimws(unlist(strsplit( ann[x], "]"))[2]))
   
   flag <- rep(FALSE, length(ann))
   met.names <- rep(NA, length(ann))
