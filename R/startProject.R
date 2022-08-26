@@ -21,6 +21,7 @@ startProject<-function (
   randomize=TRUE,
   stack = FALSE,
   prep.blanks = 3,
+  per.qc.volume = 50,
   LTR = 0,
   remove.invariant.factors = TRUE,
   destination.dir = "R:/RSTOR-PMF/Projects/", # 
@@ -242,16 +243,16 @@ startProject<-function (
   platforms <- select.platforms()
   
   paramsets<-list(
-    TOF_Hil_Pos=data.frame(c(chrominst="Waters UPLC: Sequant ZIC-pHILIC",
+    TOF_Hil_Pos=data.frame(c(chrominst="Waters UPLC",
                              msinst="Waters Xevo G2-XS Q-TOF",
-                             column="Sequant ZIC-pHilic, 2 x 150 mm, 5 uM",
-                             solvA="Water, 10 mM Ammomium Bicarbonate, pH 9.6",
-                             solvB="Acetonitrile",
+                             column="Waters Premier Amide, 2 x 100 mm, 1.7 uM",
+                             solvA="Water, 10mM Ammonium Hydroxide, 0.1% Formic acid",
+                             solvB="95% Acetonitrile, 5% Water, 10mM Ammonium Hydroxide, 0.1% Formic acid",
                              MSlevs=2,
                              CE1="6",
                              CE2="15-30",
-                             mstype="TOF",
-                             mzdifftof=0.05,
+                             mstype="Q-TOF",
+                             mzdifftof=0.02,
                              msmode="P",
                              ionization="ESI",
                              ESIvoltage="700",
@@ -259,33 +260,33 @@ startProject<-function (
                              msscanrange="50-1200",
                              conevolt="30")),
     
-    TOF_Hil_Neg=data.frame(c(chrominst="Waters UPLC: Sequant ZIC-pHILIC",
+    TOF_Hil_Neg=data.frame(c(chrominst="Waters UPLC",
                              msinst="Waters Xevo G2-XS Q-TOF",
-                             column="Sequant ZIC-pHilic, 2 x 150 mm, 5 uM",
-                             solvA="Water, 10 mM Ammomium Bicarbonate, pH 9.6",
-                             solvB="Acetonitrile",
+                             column="Waters Premier Amide, 2 x 100 mm, 1.7 uM",
+                             solvA="Water, 10mM Ammonium Hydroxide, 0.1% Formic acid",
+                             solvB="95% Acetonitrile, 5% Water, 10mM Ammonium Hydroxide, 0.1% Formic acid",
                              MSlevs=2,
                              CE1="6",
                              CE2="15-30",
-                             mstype="TOF",
-                             mzdifftof=0.05,
+                             mstype="Q-TOF",
+                             mzdifftof=0.02,
                              msmode="N",
                              ionization="ESI",
-                             ESIvoltage="2200",
+                             ESIvoltage="2000",
                              colgas="Ar",
                              msscanrange="50-1200",
                              conevolt="30")),
     
-    TOF_T3_Pos=data.frame(c(chrominst="Waters UPLC: C18 ACN Gradient",
+    TOF_T3_Pos=data.frame(c(chrominst="Waters UPLC",
                             msinst="Waters Xevo G2-XS Q-TOF",
-                            column="Waters HSST3 C18, 1 x 100 mm, 1.8 uM",
+                            column="Waters HSST3 C18, 2 x 100 mm, 1.8 uM",
                             solvA="Water, 0.1% formic acid",
                             solvB="ACN, 0.1% formic acid",
                             MSlevs=2,
                             CE1="6",
                             CE2="15-30",
-                            mstype="TOF",
-                            mzdifftof=0.05,
+                            mstype="Q-TOF",
+                            mzdifftof=0.02,
                             msmode="P",
                             ionization="ESI",
                             ESIvoltage="700",
@@ -295,14 +296,14 @@ startProject<-function (
     
     TOF_T3_Neg=data.frame(c(chrominst="Waters UPLC: C18 ACN Gradient",
                             msinst="Waters Xevo G2-XS Q-TOF",
-                            column="Waters HSST3 C18, 1 x 100 mm, 1.8 uM",
+                            column="Waters HSST3 C18, 2 x 100 mm, 1.8 uM",
                             solvA="Water, 0.1% formic acid",
                             solvB="ACN, 0.1% formic acid",
                             MSlevs=2,
                             CE1="6",
                             CE2="15-30",
                             mstype="TOF",
-                            mzdifftof=0.05,
+                            mzdifftof=0.02,
                             msmode="N",
                             ionization="ESI",
                             ESIvoltage="2200",
@@ -318,13 +319,13 @@ startProject<-function (
                             MSlevs=2,
                             CE1="6",
                             CE2="15-30",
-                            mstype="TOF",
-                            mzdifftof=0.05,
+                            mstype="Q-TOF",
+                            mzdifftof=0.02,
                             msmode="P",
                             ionization="ESI",
                             ESIvoltage="700",
                             colgas="Ar",
-                            msscanrange="50-2000",
+                            msscanrange="50-1200",
                             conevolt="30")) ,
     
     TOF_PH_Neg=data.frame(c(chrominst="Waters UPLC: ACN Gradient",
@@ -335,13 +336,13 @@ startProject<-function (
                             MSlevs=2,
                             CE1="6",
                             CE2="15-30",
-                            mstype="TOF",
-                            mzdifftof=0.05,
+                            mstype="Q-TOF",
+                            mzdifftof=0.02,
                             msmode="N",
                             ionization="ESI",
-                            ESIvoltage="2200",
+                            ESIvoltage="2000",
                             colgas="Ar",
-                            msscanrange="50-2000",
+                            msscanrange="50-1200",
                             conevolt="30")) ,
     
     GCMS_EI=data.frame(c(chrominst="Thermo Trace GC: TG-5MS column",
@@ -678,15 +679,23 @@ startProject<-function (
     n.run.batches <- max(out$run_batch, na.rm = TRUE)
     out$run_order <- 1:nrow(out)
     
-    for(i in 1:n.run.batches) {
-      do <- which(out$run_batch == i)
-      out$run_order[do] <- sample(1:length(do))
-      tmp <- out[do,]
-      tmp <- tmp[order(tmp$run_order),]
-      out[do,] <- tmp
-    }
+    # for(i in 1:n.run.batches) {
+    #   do <- which(out$run_batch == i)
+    #   out$run_order[do] <- sample(1:length(do))
+    #   tmp <- out[do,]
+    #   tmp <- tmp[order(tmp$run_order),]
+    #   out[do,] <- tmp
+    # }
     
-
+    out[which(out$prep_order == "ltr"), "prep_order"] <- NA
+    out[which(out$prep_batch == "ltr"), "prep_batch"] <- NA
+    
+    out[which(out$prep_order == "qc"), "prep_order"] <- NA
+    out[which(out$prep_batch == "qc"), "prep_batch"] <- NA
+    
+    out[which(out$prep_order == "solvent.blank"), "prep_order"] <- NA
+    out[which(out$prep_batch == "solvent.blank"), "prep_batch"] <- NA
+    
     # create factor labels and names based on smp input
     flabs <- c(paste0("fact", 1:ncol(smp), "name"))
     fnames <- names(smp)
@@ -718,14 +727,7 @@ startProject<-function (
     save(ExpDes, file="ExpDes.Rdata")
     dir.create("R_scripts")
     
-    out[which(out$prep_order == "ltr"), "prep_order"] <- NA
-    out[which(out$prep_batch == "ltr"), "prep_batch"] <- NA
-    
-    out[which(out$prep_order == "qc"), "prep_order"] <- NA
-    out[which(out$prep_batch == "qc"), "prep_batch"] <- NA
-    
-    out[which(out$prep_order == "solvent.blank"), "prep_order"] <- NA
-    out[which(out$prep_batch == "solvent.blank"), "prep_batch"] <- NA
+
     
     ## create file and sample names for run .csv file
     out <- data.frame(
@@ -750,6 +752,30 @@ startProject<-function (
     
     ## write sequence file
     write.csv(out, file="sequence.csv", row.names=FALSE)
+    
+    ## write QC prep instructions
+    n.qc.samples <- length(grep("qc", out$sample.name))
+    n.real.samples <- nrow(orig.smp)
+    qc.prep.text <- paste(
+      "The sample list contains", 
+      n.qc.samples, 
+      "qc samples and",
+      n.real.samples, 
+      "samples in the original sample list.",
+      "At", per.qc.volume, 
+      "microliters per qc sample with 25% overage to account for pippetting loss,",
+      "we will need a total of",
+      ceiling(n.qc.samples*per.qc.volume*1.25), 
+      "microliters of qc sample volume.", 
+      "This will require", 
+      ceiling((n.qc.samples*per.qc.volume*1.25)/n.real.samples),
+      "microliters of sample from each sample extract."
+    )
+    sink("qc.prep.instructions.txt")
+    cat(qc.prep.text)
+    sink()
+    
+    
     setwd(projdir)
   }
   
