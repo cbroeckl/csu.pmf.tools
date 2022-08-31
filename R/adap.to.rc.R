@@ -18,10 +18,10 @@
 #' 
 
 adap.to.rc <- function(
-  seq = NULL,  # seq <- 'seq.csv'
-  spec.abund = NULL,  # spec.abund = 'CSV.csv'
-  msp = NULL,  # msp = 'MSP.msp'
-  annotations = NULL, # annotations = 'advanced_export.xlsx'
+  seq = 'seq.csv',  # seq <- 'seq.csv'
+  spec.abund = 'SpecAbund.csv',  # spec.abund = 'CSV.csv'
+  msp = 'spectra.msp',  # msp = 'MSP.msp'
+  annotations = 'advanced_export BC 1081.xlsx', # annotations = 'advanced_export.xlsx'
   mzdec = 0, # mzdec = 1
   min.score = 700, 
   manual.name = TRUE,
@@ -110,8 +110,8 @@ adap.to.rc <- function(
       stringsAsFactors = FALSE)
   }
   
-  spec.abund <- spec.abund[, endsWith(names(spec.abund), " height")]
-  file.names <- gsub(" height", "", names(spec.abund))
+  spec.abund <- spec.abund[, endsWith(names(spec.abund), " area")]
+  file.names <- gsub(" area", "", names(spec.abund))
   spec.abund <- t(spec.abund)
   row.names(spec.abund) <- file.names
   dimnames(spec.abund)[[2]] <- names(spectra)
@@ -126,7 +126,7 @@ adap.to.rc <- function(
   
   for(i in 1:nrow(pheno)) {
     mtch <- grep(unlist(basename(tools::file_path_sans_ext(file.names[i]))), seq[,1], ignore.case = TRUE)
-    if(length(mtch) !=1) stop(pheno[i,])
+    if(length(mtch) !=1) stop(paste0("missing ", file.names[i], '\n'))
     pheno[i,2] <- seq[mtch,2]
   }
   
@@ -134,7 +134,7 @@ adap.to.rc <- function(
   ## import annotations file
   if(is.null(annotations)) {
     annotations <- xlsx::read.xlsx(
-      "ADAP_BIG/simple_export.xlsx",  sheetIndex = 2,
+      "advanced_export BC 1081.xlsx",  sheetIndex = 2,
       startRow = 2
     )
   } else {
@@ -188,7 +188,7 @@ adap.to.rc <- function(
     }
   }
   
-  inchikey <- rep(NA, length(ann))
+  phosinchikey <- rep(NA, length(ann))
   inchi <- rep(NA, length(ann))
   smiles <- rep(NA, length(ann))
   formula <- rep(NA, length(ann))
@@ -217,7 +217,7 @@ adap.to.rc <- function(
 
   
   ramclustObj <- list()
-    if(any(ls()=="factor.names")) {
+  if(any(ls()=="factor.names")) {
     ramclustObj$factor.names <- factor.names
   }
   ramclustObj$phenoData <- pheno
