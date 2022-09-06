@@ -221,7 +221,7 @@ adap.to.rc <- function(
     ramclustObj$factor.names <- factor.names
   }
   ramclustObj$phenoData <- pheno
-  ramclustObj$msint <- apply(spec.abund, 2, FUN = "median", na.rm = TRUE)
+  ramclustObj$SpecAbund <- apply(spec.abund, 2, FUN = "median", na.rm = TRUE)
   ramclustObj$qc.cv.feature.msdata <- {
     apply(spec.abund[is.qc,], 2, FUN = "sd", na.rm = TRUE)/apply(spec.abund[is.qc,], 2, FUN = "mean", na.rm = TRUE)
   }

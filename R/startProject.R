@@ -15,7 +15,7 @@
 
 
 startProject<-function (
-  prep.batch.size = 48,
+  prep.batch.size = 60,
   run.batch.size=96,
   QC=6,
   randomize=TRUE,
@@ -558,21 +558,31 @@ startProject<-function (
     }
   }
   
+  ## randomize prep batch order
+  if(randomize) {
+    prep.batch.order <- as.numeric(smp$prep_batch)
+    rand.batch.order <- sample(unique(prep.batch.order), length(unique(prep.batch.order)), replace = FALSE)
+    new.prep.batch.order <- rep(NA, length(prep.batch.order))
+    for(i in 1:length(rand.batch.order)) {
+      new.prep.batch.order[which(prep.batch.order == i)] <- rand.batch.order[i]
+    }
+    smp$prep_batch <- new.prep.batch.order
+  }
+
   ## assign final prep order: 
   prep.order <- smp$prep_order
-  max.order <- 0
   for(i in 1:n.prep.batches) {
     do <- which(smp$prep_batch == i)
-    do.ind <- max.order + 1:length(do)
-    max.order <- max(do.ind)
-    prep.order[do] <- if(randomize) {sample(do.ind)} else {do.ind}
+    prep.order[do] <- if(randomize) {order(prep.order[do])} else {prep.order[do]}
   }
   prep.order <- as.numeric(prep.order)
   smp$prep_order <- prep.order
   
-  ## write prep .csv  
-  smp <- smp[order(smp$prep_batch),]
-  smp <- smp[order(smp$prep_order),]
+
+  ## write prep .csv 
+  smp <- smp[order(as.numeric(smp$prep_order)),]
+  smp <- smp[order(as.numeric(smp$prep_batch)),]
+
   write.csv(smp[,-grep("run_", names(smp))], file = "prep.sample.list.csv", row.names = FALSE)
   
   ## get project name and shorten for convenience
