@@ -72,6 +72,7 @@ pmfanova<-function(ramclustObj=RC,
     dir.create('stats/anova')
   }
   
+  
   d <- RAMClustR::getData(
     ramclustObj = ramclustObj, 
     which.data = which.data, 
@@ -278,8 +279,8 @@ pmfanova<-function(ramclustObj=RC,
     
     save(res, file = paste0(out.dir, "/models.Rdata"))
   }
-
-
+  
+  
   
   ##optionally return posthoc results using tukey HSD
   if(!is.null(posthoc)) {
@@ -313,7 +314,7 @@ pmfanova<-function(ramclustObj=RC,
     
   }
   
-
+  
   # out.dir
   ramclustObj[[paste0("anova.pval_", anova.name)]] <- mp
   
@@ -338,6 +339,14 @@ pmfanova<-function(ramclustObj=RC,
     # }
     # cex.rg <- seq(min(cexs), max(cexs), length.out = 5)
     # int.rg <- seq(from = min(ramclustObj$msint), to = max(ramclustObj$msint), by = )
+    
+    if(is.null(ramclustObj$msint)){    
+      msint<-rep(0, length(ramclustObj$cmpd))
+      for(i in 1:length(msint)){
+        msint[i]<-weighted.mean(ramclustObj$SpecAbund[,i], ramclustObj$SpecAbund[,i])
+      }
+      ramclustObj$msint<-msint
+    }
     
     ints <- log10(ramclustObj$msint)^2
     cexs <- 3*(ints)/max(ints)

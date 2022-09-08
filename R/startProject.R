@@ -28,10 +28,6 @@ startProject<-function (
   sub.project.name = NULL  ## add optional subproject.name
 ) {
   
-  ## NEED TO ADD BATCH ORDER RANDOMIZATION
-  ## CONSIDER THE BENEFITS OF ADDING RUN ORDER TO SAMPLE NAME VS REFERENCING BOTH SEQUENCE.CSV AND SEQ.CSV
-  ## PLATFORM SPECIFIC COPYING OF R SCRIPTS TO R_SCRIPTS FOLDER
-  
   require(tcltk)
   require(xlsxjars)
   require(xlsx)

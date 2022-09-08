@@ -109,7 +109,11 @@ adap.to.rc <- function(
       check.names = FALSE, 
       stringsAsFactors = FALSE)
   }
-  
+  ramclustObj$history$adap.big <- paste(
+    paste0(
+      "ADAP-BIG (Smirnov 2019) was used to detect peaks, align samples, and deconvolve spectra. ",
+      "Results were exported from ADAP and imported into R using the adap.to.rc function. ")
+  )
   spec.abund <- spec.abund[, endsWith(names(spec.abund), " area")]
   file.names <- gsub(" area", "", names(spec.abund))
   spec.abund <- t(spec.abund)
@@ -133,33 +137,39 @@ adap.to.rc <- function(
   
   ## import annotations file
   if(is.null(annotations)) {
-    annotations <- xlsx::read.xlsx(
-      "advanced_export BC 1081.xlsx",  sheetIndex = 2,
-      startRow = 2
-    )
+    annotations <- NA
   } else {
     annotations <- xlsx::read.xlsx(
       annotations,  sheetIndex = 2,
       startRow = 2)
+    unannotated <- unique(c(
+      which(is.na(annotations$Compound.Name)),
+      grep("Unknown", annotations$Compound.Name)
+    ))
+    annotations <- annotations[-unannotated,]
+    annotations <- annotations[which(annotations$Fragmentation.Score.by.matching.with.Experimental.spectra > min.score),]
+    
+    ramclustObj$history$adap.kdb <- paste(
+      paste0(
+        "ADAP-KDB (Smirnov 2021) was for assigning annotations to library spectra and consensus spectra from Metabolomics Workbench. ",
+        "These annotations were exported and imported into R. ")
+    )
   } 
   
-  unannotated <- unique(c(
-    which(is.na(annotations$Compound.Name)),
-    grep("Unknown", annotations$Compound.Name)
-  ))
-  annotations <- annotations[-unannotated,]
-  annotations <- annotations[which(annotations$Fragmentation.Score.by.matching.with.Experimental.spectra > min.score),]
-  
+
   cmpd <- names(spectra)
   ann <- rep(NA, length(cmpd))
   adap.score <- rep(NA, length(cmpd))
-  for(i in 1:length(spectra)) {
-    use <- annotations[which(annotations$Numerical.Signal.ID.assigned.by.ADAP.KDB == i),]
-    if(length(use) == 0) next
-    use <- use[order(use$Fragmentation.Score.by.matching.with.Experimental.spectra, decreasing = TRUE),]
-    ann[i] <- use$Compound.Name[1]
-    adap.score[i] <- use$Fragmentation.Score.by.matching.with.Experimental.spectra[1]
+  if(is.data.frame(annotations)) {
+    for(i in 1:length(spectra)) {
+      use <- annotations[which(annotations$Numerical.Signal.ID.assigned.by.ADAP.KDB == i),]
+      if(length(use) == 0) next
+      use <- use[order(use$Fragmentation.Score.by.matching.with.Experimental.spectra, decreasing = TRUE),]
+      ann[i] <- use$Compound.Name[1]
+      adap.score[i] <- use$Fragmentation.Score.by.matching.with.Experimental.spectra[1]
+    }
   }
+
   # ann <- sapply(1:length(ann), FUN = function(x) trimws(unlist(strsplit( ann[x], "]"))[2]))
   
   flag <- rep(FALSE, length(ann))
@@ -195,15 +205,25 @@ adap.to.rc <- function(
   pubchem.cid <- rep(NA, length(ann))
   do.met.names <- which(!is.na(met.names))
   
-  pc <- rc.cmpd.get.pubchem(cmpd.names = met.names[do.met.names], all.props = FALSE,
-                                       get.synonyms = FALSE, get.bioassays = FALSE, get.properties = TRUE,
-                            manual.entry = manual.name, write.csv = FALSE)
   
-  inchikey[do.met.names]    <- pc$properties$InChIKey
-  inchi[do.met.names]       <- pc$properties$InChI
-  smiles[do.met.names]      <- pc$properties$CanonicalSMILES
-  pubchem.cid[do.met.names] <- pc$pubchem$cid
-  formula[do.met.names]     <- pc$properties$MolecularFormula
+  if(length(do.met.names)>0) {
+    pc <- rc.cmpd.get.pubchem(cmpd.names = met.names[do.met.names], all.props = FALSE,
+                              get.synonyms = FALSE, get.bioassays = FALSE, get.properties = TRUE,
+                              manual.entry = manual.name, write.csv = FALSE)
+    
+    inchikey[do.met.names]    <- pc$properties$InChIKey
+    inchi[do.met.names]       <- pc$properties$InChI
+    smiles[do.met.names]      <- pc$properties$CanonicalSMILES
+    pubchem.cid[do.met.names] <- pc$pubchem$cid
+    formula[do.met.names]     <- pc$properties$MolecularFormula
+  } else {
+    inchikey        <- rep(NA, length(cmpd))
+    inchi           <- rep(NA, length(cmpd))
+    smiles          <- rep(NA, length(cmpd))
+    pubchem.cid     <- rep(NA, length(cmpd))
+    formula         <- rep(NA, length(cmpd))
+  }
+
   
   
   is.qc <- grep(qc.tag, pheno[,2])
@@ -227,10 +247,13 @@ adap.to.rc <- function(
   }
   ramclustObj$cmpd <- cmpd
   ramclustObj$clrt <- rts
+  met.names[which(is.na(ann))] <- cmpd[which(is.na(ann))]
+  ann[which(is.na(ann))] <- cmpd[which(is.na(ann))]
   ramclustObj$ann  <- met.names
   ramclustObj$ann.derivitive <- ann
   ramclustObj$annconf <- "2a"
   ramclustObj$SpecAbund <- spec.abund
+  
   # ramclustObj$qc.spec.abund <- spec.abund.qc
   # ramclustObj$qc.phenoData <- phenoData.qc
   # ramclustObj$blank.spec.abund <- spec.abund.blank
@@ -239,6 +262,9 @@ adap.to.rc <- function(
   ramclustObj$inchikey <- inchikey
   ramclustObj$smiles <- smiles
   ramclustObj$pubchem.cid <- pubchem.cid
+  
+
+
   
   return(ramclustObj)
   
