@@ -25,14 +25,14 @@
 pmfpca<-function(ramclustObj=RC,
                  which.data="SpecAbund",
                  scale="pareto",
-                 subset = c(""),
+                 subset = c(),
                  subset.cmpd = c(),
                  which.factors = NULL,
                  num.factors = NULL,
                  label.by = "cmpd", 
                  npc = "auto",
                  bw = FALSE,
-                 ag.summary.plot = TRUE) {
+                 ag.summary.plot = FALSE) {
   
   require(ggplot2)
   require(ggfortify)
@@ -61,7 +61,7 @@ pmfpca<-function(ramclustObj=RC,
     scale, ".")
   
   
-  d <- getData(
+  d <- RAMClustR::getData(
     ramclustObj = ramclustObj, 
     which.data = which.data, 
     cmpdlabel = label.by
@@ -169,6 +169,7 @@ pmfpca<-function(ramclustObj=RC,
     )
   }
   
+  cat("passed nPC assignment", '\n')
   
   # pc <- prcomp(d[[]]) #original
   full.data <- data.frame(d[[1]][,which.factors], d[[2]], stringsAsFactors = TRUE)
@@ -202,6 +203,7 @@ pmfpca<-function(ramclustObj=RC,
     sig.pcs <- rep(FALSE, npc)
   }
   
+  cat("passed anova plotting", '\n')
   
   ramclustObj$history$PCA.anova <- paste0(
     "Linear model ANOVA was performed for the factor(s) [",
@@ -242,7 +244,7 @@ pmfpca<-function(ramclustObj=RC,
       }
       
     }
-    
+    cat("passed ag.plots loop", '\n')
   }
   
   par(mfrow = c(1,1))
@@ -251,6 +253,7 @@ pmfpca<-function(ramclustObj=RC,
   
   
   for(i in 1:ncol(xy)) {
+    cat("in pc plotting loop", '\n')
     for(j in 1:length(which.factors)) {
       
       # sc <- data.frame(d[[1]][,which.factors[j]], pc$x[,xy[,i]], stringsAsFactors = TRUE)
@@ -307,6 +310,7 @@ pmfpca<-function(ramclustObj=RC,
       
     }
   }
+  cat("passed anova plotting loop", '\n')
   dev.off()
   
   loadings.out <- (pc$rotation)[,1:npc, drop = FALSE]
