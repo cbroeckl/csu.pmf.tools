@@ -5,15 +5,16 @@
 \title{adap.to.rc}
 \usage{
 adap.to.rc(
-  seq = NULL,
-  spec.abund = NULL,
-  msp = NULL,
-  annotations = NULL,
-  mzdec = 0,
+  seq = "seq.csv",
+  spec.abund = "signal.csv",
+  msp = "spectra.msp",
+  annotations = "annotations.xlsx",
+  mzdec = 1,
   min.score = 700,
-  manual.name = TRUE,
+  manual.name = FALSE,
   qc.tag = "qc",
-  blank.tag = "blank"
+  blank.tag = "blank",
+  factor.names = c()
 )
 }
 \arguments{

@@ -8,7 +8,7 @@ pmfpca(
   ramclustObj = RC,
   which.data = "SpecAbund",
   scale = "pareto",
-  subset = c(""),
+  subset = c(),
   subset.cmpd = c(),
   which.factors = NULL,
   num.factors = NULL,

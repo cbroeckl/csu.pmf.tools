@@ -44,24 +44,29 @@ pmfanova<-function(ramclustObj=RC,
                    output.summary = TRUE
 ) {
   
-  # consider moving away from lsmeans and effects, keeping only emmeans dependency.
-  # lme4, lmerTest, pbkrtest needed? 
-  # 
-  # replace effects plots with emmeans plots
-  # d <- getData(ramclustObj = RC)
+  # # consider moving away from lsmeans and effects, keeping only emmeans dependency.
+  # # lme4, lmerTest, pbkrtest needed? 
+  # # replace effects plots with emmeans plots
+  # d <- RAMClustR::getData(ramclustObj = ramclustObj)
   # dat <- cbind(d[[1]], d[[2]])
-  # m <- lm(C0001 ~ label*time, data = dat)
-  # anova.call <- "label*time"
-  # posthoc <- anova.call
-  # m <- lm(as.formula(paste("C0001", "~", anova.call)), data = dat)
-  # e <- emmeans(m, as.formula(paste("pairwise ~", posthoc)), data=dat)
+  # dat <- dat[subset,]
+  # # m <- lm(as.formula(paste("C0001", "~", "treatment+dose+time+treatment:dose+treatment:time+dose:time")), data = dat)
+  # # e <- emmeans(m, specs = pairwise ~ treatment:dose:time)
+  # m <- lm(as.formula(paste("C0002", "~", "treatment*dose")), data = dat)
+  # a <- aov(m)
+  # e <- emmeans(m, specs = pairwise ~ dose|treatment)
+  # e.grid <- ref_grid(m)
+  # plot(e.grid, by = c('time', 'treatment'))
+  # emmip(m, C0001 ~ dose)
+  # with(pigs, interaction.plot(percent, source, conc))
+  # dat$dose <- as.numeric(as.character(dat$dose))
+  # with(dat, interaction.plot(dose, paste(treatment, time), C0001))
   # # emmip(noise.lm, type ~ size | side)
   # emmip(m, label ~ time, data = dat)
   
   require(effects)
   require(lme4)
   require(lmerTest)
-  require(lsmeans)
   require(pbkrtest)
   require(emmeans)
   
@@ -292,14 +297,15 @@ pmfanova<-function(ramclustObj=RC,
       phres<-lapply(1:length(res), 
                     FUN=function (x) {
                       # lsmeans(res[[x]], as.formula(paste("pairwise ~", posthoc[j])), data=dat, method = "tukey")
-                      emmeans::emmeans(res[[x]], as.formula(paste("pairwise ~", posthoc[j])), data=dat)
+                      suppressWarnings(emmeans::emmeans(res[[x]], as.formula(paste("pairwise ~", posthoc[j])), data=dat))
                     })
+      
       # test$contrasts@grid
       tmp <- test$contrasts@grid
       pn <- as.vector(test$contrasts@levels[[1]])
       if(ncol(tmp)>1) {
-        for(i in 2:ncol(tmp)) {
-          pn <- paste(pn, as.vector(test$contrasts@levels[[i]])[test$contrasts@grid[,i]], sep = "_")
+        for(i in 2:(ncol(tmp)-1)) {
+          pn <- paste(pn, as.vector(test$contrasts@levels[[i]]), sep = " : ")
         }
       }
       pnames <- pn
@@ -309,7 +315,7 @@ pmfanova<-function(ramclustObj=RC,
       mp<-rbind(mp, pdata)
     }
     ramclustObj$history$anova6 <- paste(
-      paste0("Post-hoc testing was performed for [", paste(posthoc, sep = " "), "] using the 'Tukey' method in the lsmeans package.")
+      paste0("Post-hoc testing was performed for [", paste(posthoc, sep = " "), "] using the 'Tukey' method in the emmeans package.")
     )
     
   }
@@ -378,14 +384,17 @@ pmfanova<-function(ramclustObj=RC,
       }
       dev.off()
     }
-    
-    if(!is.null(ramclustObj$clrt) & !is.null(ramclustObj$annconf)) {
-      write.csv(file=paste0(out.dir, "/anova_pvalues.csv"), 
-                data.frame("cmpd"=ramclustObj$cmpd[cmpd.use], "annotation"=ramclustObj$ann[cmpd.use], 
-                           "annconf"=ramclustObj$annconf[cmpd.use], "rt"=ramclustObj$clrt[cmpd.use],
-                           t(mp), check.names=FALSE), row.names=FALSE)} else {
-                             write.csv(file="stats/anova/anova_pvalues.csv", mp, row.names=TRUE)
-                           }
+  }
+  
+  if(!is.null(ramclustObj$clrt) & !is.null(ramclustObj$annconf)) {
+    write.csv(
+      file=paste0(out.dir, "/anova_pvalues.csv"), 
+      data.frame(
+        "cmpd"=ramclustObj$cmpd[cmpd.use], "annotation"=ramclustObj$ann[cmpd.use], 
+        "annconf"=ramclustObj$annconf[cmpd.use], "rt"=ramclustObj$clrt[cmpd.use],
+        t(mp), check.names=FALSE), row.names=FALSE)
+  } else {
+    write.csv(file="stats/anova/anova_pvalues.csv", mp, row.names=TRUE)
   }
   
   if(summary.statistics) {

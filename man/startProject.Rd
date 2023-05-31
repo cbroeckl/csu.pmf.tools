@@ -5,12 +5,13 @@
 \title{startProject}
 \usage{
 startProject(
-  prep.batch.size = 48,
+  prep.batch.size = 60,
   run.batch.size = 96,
   QC = 6,
   randomize = TRUE,
   stack = FALSE,
   prep.blanks = 3,
+  per.qc.volume = 50,
   LTR = 0,
   remove.invariant.factors = TRUE,
   destination.dir = "R:/RSTOR-PMF/Projects/",
