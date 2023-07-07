@@ -41,7 +41,8 @@ pmfanova<-function(ramclustObj=RC,
                    which.quan=NULL,
                    filter = TRUE,
                    summary.statistics = TRUE, 
-                   output.summary = TRUE
+                   output.summary = TRUE,
+                   remove.na.factors = FALSE
 ) {
   
   # # consider moving away from lsmeans and effects, keeping only emmeans dependency.
@@ -101,21 +102,25 @@ pmfanova<-function(ramclustObj=RC,
   
   
   ## remove samples that have NA values in any factor from anova.call
-  keep <- rep(TRUE, nrow(d[[1]]))
-  
-  for(i in 1:ncol(d[[1]])) {
-    if(!grepl(names(d[[1]])[i], anova.call)) next
-    na.vals <- which(is.na(d[[1]][,i]))
-    na.vals <- c(na.vals, which(d[[1]][,i] == "NA"))
-    if(length(na.vals)==0) next
-    keep[na.vals] <- FALSE
+  if(remove.na.factors) {
+    keep <- rep(TRUE, nrow(d[[1]]))
+    
+    for(i in 1:ncol(d[[1]])) {
+      if(!grepl(names(d[[1]])[i], anova.call)) next
+      na.vals <- which(is.na(d[[1]][,i]))
+      na.vals <- c(na.vals, which(d[[1]][,i] == "NA"))
+      if(length(na.vals)==0) next
+      keep[na.vals] <- FALSE
+    }
+    
+    if(any(!keep)) {
+      cat("excluding", length(which(!keep)), "samples with 'NA' values from ANOVA.", '\n')
+      d[[1]] <- d[[1]][keep,]
+      d[[2]] <- d[[2]][keep,]
+      d[[3]] <- d[[3]][keep,]
+    }
   }
-  if(any(!keep)) {
-    cat("excluding", length(which(!keep)), "samples with 'NA' values from ANOVA.", '\n')
-    d[[1]] <- d[[1]][keep,]
-    d[[2]] <- d[[2]][keep,]
-    d[[3]] <- d[[3]][keep,]
-  }
+
   
   if(!is.null(which.quan)) {
     for(i in 1:length(which.quan)) {
@@ -156,6 +161,9 @@ pmfanova<-function(ramclustObj=RC,
     paste0("For the analysis of variance titled '", anova.name, "',"),
     "the", which.data, "dataset was used as described below."
   )
+  
+  cat("subset:", subset, '\n')
+  # cat(dim(d[[2]]), '\n')
   
   if(length(subset) > 1) {
     if(is.integer(subset))  {
@@ -237,7 +245,7 @@ pmfanova<-function(ramclustObj=RC,
     for(x in 1:length(cmpd)) {
       res.x <- lmerTest::lmer(as.formula(paste(cmpd[x], "~", anova.call)), data = .TeMpVaR)
       if(effectsplots) {
-        plot(effects::allEffects(res.x), main=ramclustObj[[label.by]][i], ylab="effect size (signal intensity)")
+        plot(effects::allEffects(res.x), main=ramclustObj[[label.by]][x], ylab="effect size (signal intensity)")
       }
       res[[x]] <- res.x
     }
@@ -301,12 +309,10 @@ pmfanova<-function(ramclustObj=RC,
                     })
       
       # test$contrasts@grid
-      tmp <- test$contrasts@grid
-      pn <- as.vector(test$contrasts@levels[[1]])
-      if(ncol(tmp)>1) {
-        for(i in 2:(ncol(tmp)-1)) {
-          pn <- paste(pn, as.vector(test$contrasts@levels[[i]]), sep = " : ")
-        }
+      tmp <- as.matrix(test$contrasts@grid, stringsAsFactors = FALSE)
+      pn <- vector(length = 0)
+      for(i in 1:nrow(tmp)) {
+        pn <- c(pn, paste(as.vector(tmp[i,]), collapse = " _ "))
       }
       pnames <- pn
       pdata <- data.frame(lapply(1:length(phres), FUN = function(x) {summary(phres[[x]]$contrasts)$p.value }))
@@ -365,13 +371,13 @@ pmfanova<-function(ramclustObj=RC,
       pdf(file=paste0(out.dir, "/anova_summary.pdf"), width=10, height=8)
       for(i in 2:ncol(pldata)) {
         par(xpd=FALSE)
-        if(any(pldata[,i]) == 0) {
+        if(any(pldata[,i] == 0)) {
           fix <- as.vector(which(pldata[,i] == 0))
           pldata[fix,i] <- min(pldata[-fix,i])
         }
         plot(pldata[,1], -log10(pldata[,i]), 
-             xlab="retention time (seconds)",
-             ylab="-log(pvalue)", ylim = c(0, -log10(min(0.04, min(pldata[,i])))),
+             xlab="retention time (seconds)", 
+             ylab="-log(pvalue)", ylim = c(0, -log10(min(0.04, min(pldata[,i], na.rm = TRUE)))),
              cex.axis=1, cex.lab=1, main=paste("ANOVA p-values:", dimnames(pldata)[[2]][i]), bty='L',
              pch=21, cex=cexs, bg=plcols[,i], 
              sub = "circle size reflects median feature intensity", cex.sub = 0.5)
