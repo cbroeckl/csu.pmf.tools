@@ -203,7 +203,7 @@ pmfpca<-function(ramclustObj=RC,
     sig.pcs <- rep(FALSE, npc)
   }
   
-  cat("passed anova plotting", '\n')
+  cat("passed anova testing", '\n')
   
   ramclustObj$history$PCA.anova <- paste0(
     "Linear model ANOVA was performed for the factor(s) [",
@@ -217,6 +217,7 @@ pmfpca<-function(ramclustObj=RC,
     if(ag.summary.plot) {
       par(mfrow = c(1,2))
       # cat("before plotting", '\n')
+      
       plot(ag.obj, agfuns, 
            main = "n PC selection: AuerGervini method",
            sub = "dashed line(s) indicate all possible nPC options, 
