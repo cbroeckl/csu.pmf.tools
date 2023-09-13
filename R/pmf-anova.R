@@ -120,7 +120,7 @@ pmfanova<-function(ramclustObj=RC,
       d[[3]] <- d[[3]][keep,]
     }
   }
-
+  
   
   if(!is.null(which.quan)) {
     for(i in 1:length(which.quan)) {
@@ -215,6 +215,24 @@ pmfanova<-function(ramclustObj=RC,
     mp<-data.frame(lapply(1:length(res), FUN=function(x) {anova(res[[x]])$"Pr(>F)"[1:length(pnames)]}))
     dimnames(mp)[[1]] <- pnames
     dimnames(mp)[[2]] <- cmpd
+    
+    if(effectsplots) {
+      testplot<-try(
+        effects::allEffects(test), silent = TRUE
+      )
+      if(class(testplot) != 'try-error') {
+        pdf(file=paste0(out.dir, "/effectsplots.pdf"), width=16, height=8)
+        for(i in 1:length(res)) {
+          plot(effects::allEffects(res[[i]]), main=ramclustObj[[label.by]][i], ylab="effect size (signal intensity)")
+        }
+        dev.off()
+      } else {
+        cat("effects plots failed: setting effectsplots = FALSE", '\n')
+        cat(testplot)
+        stop("effects plots failed")
+        effectsplots = FALSE
+      }
+    }
     
     ramclustObj$history$anova4 <- paste(
       "Fixed-factor linear model ANOVA was performed using the lm function.", 
@@ -404,15 +422,16 @@ pmfanova<-function(ramclustObj=RC,
   }
   
   if(summary.statistics) {
+    anova.call <- gsub("1|", "", anova.call, fixed = TRUE)
     f <- paste(ramclustObj$cmpd[1], "~", anova.call)
-    if(grepl("|", f, fixed = TRUE)) {
-      f <- unlist(strsplit(f, "+", fixed = TRUE))
-      for(i in length(f):1) {
-        if(grepl("|", f[i], fixed = TRUE)) {
-          f <- f[-i]
-        }
-      }
-    }
+    # if(grepl("|", f, fixed = TRUE)) {
+    #   f <- unlist(strsplit(f, "+", fixed = TRUE))
+    #   for(i in length(f):1) {
+    #     if(grepl("|", f[i], fixed = TRUE)) {
+    #       f <- f[-i]
+    #     }
+    #   }
+    # }
     test <- aggregate(as.formula(f), data = dat, FUN = "mean")
     fact.names <- names(test)[1:(ncol(test)-1)]
     n <- c("cmpd", fact.names, "statistic", "value")
