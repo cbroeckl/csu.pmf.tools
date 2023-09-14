@@ -20,7 +20,8 @@ pmfanova(
   which.quan = NULL,
   filter = TRUE,
   summary.statistics = TRUE,
-  output.summary = TRUE
+  output.summary = TRUE,
+  remove.na.factors = FALSE
 )
 }
 \arguments{
