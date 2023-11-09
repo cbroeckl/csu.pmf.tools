@@ -266,3 +266,199 @@ rc.cmpd.get.classyfire <- function (ramclustObj = NULL, inchikey = NULL, get.all
   return(ramclustObj)
 }
 
+
+
+######################################################################
+## get classyfire heirarchy for a given vector of classyfire chemonids
+
+get.classyfire.local <- function(
+    ramclustObj = NULL,
+    chemontid = NULL,
+    chemont.obo.location = NULL
+) {
+  
+  if(!is.null(ramclustObj) & is.null(chemontid)) {
+    chemontid <- ramclustObj$annotations.full$chemontid
+  }
+  
+  if(is.null(chemontid)) {stop("no chemontids submitted", '\n')}
+  if(is.null(chemont.obo.location)) {stop("no chemont.obo file specified", '\n')}
+  
+  classyfire <- ontologyIndex::get_ontology(
+    file = chemont.obo.location,
+    propagate_relationships = "is_a",
+    extract_tags = "minimal",
+    merge_equivalent_terms = TRUE
+  )
+  
+  cmpd.classyfire <- data.frame(
+    'superclass'     = rep(NA, 0),
+    'class'          = rep(NA, 0),
+    'subclass'       = rep(NA, 0),
+    'direct.parent'  = rep(NA, 0)
+  )
+  
+  for(i in 1:length(chemontid)) {
+    
+    if(
+      nchar(ramclustObj$annotations.full[i,'chemontid'])==0 | ramclustObj$annotations.full[i,'chemontid'] == "NA"
+    ) {
+      out <- data.frame(
+        'superclass'     = NA,
+        'class'          = NA,
+        'subclass'       = NA,
+        'direct.parent'  = NA
+      )
+      cmpd.classyfire <- rbind(
+        cmpd.classyfire,
+        out
+      )
+    } else {
+      classyfication <- as.vector(classyfire$name[unlist(classyfire$ancestors[chemontid[i]])][3:5])
+      out <- data.frame(
+        'superclass'     = classyfication[1],
+        'class'          = classyfication[2],
+        'subclass'       = classyfication[3],
+        'direct.parent'  = classyfire$name[chemontid[i]]
+      )
+      cmpd.classyfire <- rbind(
+        cmpd.classyfire,
+        out
+      )
+      
+    }
+    if(nrow(cmpd.classyfire)>i) {stop("too many rows. On: ", i, '\n')}
+  }
+  
+  cmpd.classyfire[which(is.na(cmpd.classyfire), arr.ind = TRUE)] <- 'unassigned'
+  
+  if(is.null(ramclustObj)) {
+    return(cmpd.classyfire)} else {
+      ramclustObj$annotations.full <- 
+        data.frame(
+          ramclustObj$annotations.full,
+          cmpd.classyfire
+        )
+      ramclustObj$annotations.selected <- ramclustObj$annotations.full[which(ramclustObj$annotations.full$assigned),2:ncol(ramclustObj$annotations.full)]
+      return(ramclustObj)
+    }
+  
+  write.csv(ramclustObj$annotations.full, file = paste0("spectra/", "all.annotations.csv"), row.names = FALSE)
+  write.csv(ramclustObj$annotations.selected, file = paste0("spectra/", "assigned.annotations.csv"), row.names = FALSE)
+}
+
+
+
+
+classyfire.sunburst.plot <-  function(
+    ramclustObj = RC, 
+    subset.cmpds = rep(TRUE, length(ramclustObj$ann)),
+    out.file.name = NULL
+){
+  
+  if(length(which(subset.cmpds)) == 0) {
+    error("all subset.cmpds are set to FALSE", '\n')
+  }
+  
+  require(dplyr)
+  require(plotly)
+  
+  ## sunburst plot
+  ## may be able to add more info with 'hover' function to add things like stats results, or compound description.
+  ct <- ramclustObj$annotations.selected[,c("superclass", "class", "subclass", "direct.parent", "compound.name")]
+  
+  ct <- ct[subset.cmpds,]
+  
+  ct <- replace(ct, is.na(ct), "unassigned")
+  for(i in 1:ncol(ct)) {
+    ct[,i] <- gsub("-", "_", ct[,i])
+  }
+  d <- data.frame(
+    "ids" = rep(NA, 0),
+    "labels" = rep(NA, 0),
+    "parents" = rep(NA, 0),
+    "values"= rep(0, 0)
+  )
+  superclasses <- unique(ct[,"superclass"])
+  for(i in 1:length(superclasses)) {
+    superclass <- superclasses[i]
+    ## add root node element
+    ctsub <- ct[which(ct$superclass == superclass),]
+    out <- data.frame(
+      "ids" = superclass,
+      "labels" = superclass,
+      "parents" = "",
+      "values" = nrow(ctsub)
+    )
+    d <- rbind(d, out)
+    
+    ## for all classes within superclass i
+    classes <- unique(ctsub[,"class"])
+    for(j in 1:length(classes)) {
+      class <- classes[j]
+      ctsub2 <- ctsub[which(ctsub$class == class),]
+      if(nrow(ctsub2) == 0) next
+      out <- data.frame(
+        "ids" = paste0(c(superclass, class), collapse = "-"),
+        "labels" = class,
+        "parents" = superclass,
+        "values" = nrow(ctsub2)
+      )
+      d <- rbind(d, out)
+      
+      ## for all subclasses within class j
+      subclasses <- unique(ctsub2[,"subclass"])
+      for(k in 1:length(subclasses)) {
+        subclass <- subclasses[k]
+        ctsub3 <- ctsub2[which(ctsub2$subclass == subclass),]
+        if(nrow(ctsub3) == 0) next
+        if(class == "unassigned" & subclass == "unassigned") next
+        out <- data.frame(
+          "ids" = paste0(c(class, subclass), collapse = "-"),
+          "labels" = subclass,
+          "parents" = paste0(c(superclass, class), collapse = "-"),
+          "values" = nrow(ctsub3)
+        )
+        d <- rbind(d, out)
+        
+        # for all compounds within subclass k
+        compounds <- unique(ctsub3[,"compound.name"])
+        for(m in 1:length(compounds)) {
+          compound <- compounds[m]
+          ctsub5 <- ctsub3[which(ctsub3$compound.name == compound),]
+          if(nrow(ctsub5) == 0) next
+          if(subclass == "unassigned" & compound == "unassigned") next
+          out <- data.frame(
+            "ids" = paste0(c(subclass, compound), collapse = "-"),
+            "labels" = compound,
+            "parents" = paste0(c(class, subclass), collapse = "-"),
+            "values" = nrow(ctsub5)
+          )
+          d <- rbind(d, out)
+          
+          # }
+        }
+      }
+    }
+  }
+  fig2 <- plotly::plot_ly(d, 
+                          ids = ~ids, 
+                          labels = ~labels, 
+                          parents = ~parents, 
+                          values = ~values,
+                          branchvalues = "total",
+                          insidetextorientation='radial',
+                          maxdepth=2,
+                          type = 'sunburst')
+  
+  if(is.null(out.file.name)) {
+    htmlwidgets::saveWidget(fig2, file=paste0( getwd(), "/spectra/annotation.classyfire.sunburst.html"), 
+                            knitrOptions = list()) 
+    write.csv(d, file = paste0( getwd(), "/spectra/annotation.classyfire.sunburst.input.csv"), row.names = FALSE)
+  } else {
+    htmlwidgets::saveWidget(fig2, file=paste0( getwd(), out.file.name, ".html"), 
+                            knitrOptions = list()) 
+    write.csv(d, file = paste0( getwd(), out.file.name, ".input.csv"), row.names = FALSE)
+  }
+}
+
