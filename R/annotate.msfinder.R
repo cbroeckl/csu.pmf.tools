@@ -393,3 +393,235 @@ annotate.msfinder <- function (ramclustObj = NULL,
   
   return(ramclustObj)
 }
+
+
+
+
+#' annotate.msfinder
+#'
+#' After running MSFinder on .mat or .msp files, import the formulas that were predicted and their scores 
+#' @param ramclustObj R object - the ramclustR object which was used to write the .mat or .msp files
+#' @param mat.dir optional path to .mat directory
+#' @param msp.dir optional path to .msp directory
+#' @details this function imports the output from the MSFinder program to support annotation of the ramclustR object
+#' @return new slot at $msfinder.formula.details
+#' @references Broeckling CD, Afsar FA, Neumann S, Ben-Hur A, Prenni JE. RAMClust: a novel feature clustering method enables spectral-matching-based annotation for metabolomics data. Anal Chem. 2014 Jul 15;86(14):6812-7. doi: 10.1021/ac501530d.  Epub 2014 Jun 26. PubMed PMID: 24927477.
+#' @references Broeckling CD, Ganna A, Layer M, Brown K, Sutton B, Ingelsson E, Peers G, Prenni JE. Enabling Efficient and Confident Annotation of LC-MS Metabolomics Data through MS1 Spectrum and Time Prediction. Anal Chem. 2016 Sep 20;88(18):9226-34. doi: 10.1021/acs.analchem.6b02479. Epub 2016 Sep 8. PubMed PMID: 7560453.
+#' @references Tsugawa H, Kind T, Nakabayashi R, Yukihira D, Tanaka W, Cajka T, Saito K, Fiehn O, Arita M. Hydrogen Rearrangement Rules: Computational MS/MS Fragmentation and Structure Elucidation Using MS-FINDER Software. Anal Chem. 2016 Aug 16;88(16):7946-58. doi: 10.1021/acs.analchem.6b00770. Epub 2016 Aug 4. PubMed PMID: 27419259.
+#' @concept ramclustR
+#' @concept RAMClustR
+#' @concept metabolomics
+#' @concept mass spectrometry
+#' @concept clustering
+#' @concept feature
+#' @concept MSFinder
+#' @concept xcms
+#' @author Corey Broeckling
+#' @export
+
+annotate.msfinder.gcei <- function (ramclustObj = NULL, 
+                                    mat.dir = NULL,
+                                    priority.db = NULL,
+                                    priority.inchikey = NULL,
+                                    priority.db.factor = 0.9,
+                                    priority.inchikey.factor = 0.9,
+                                    adj.score = TRUE
+) 
+{
+  
+  if(is.null(ramclustObj)) {
+    stop("must supply ramclustObj as input.  i.e. ramclustObj = RC", '\n')
+  }
+  
+  home.dir <- getwd()
+  
+  if(!is.null(priority.db) & !is.null(priority.inchikey)) {
+    warning("both inchikey and database priority set - ensure they are independent. ", '\n')
+  }
+  
+  r <- grep("msfinder.formula", names(ramclustObj))
+  if (length(r) > 0) {
+    warning("removed previously assigned MSFinder formulas and structures", 
+            "\n")
+    ramclustObj <- ramclustObj[-r]
+    r <- grep("msfinder.structure", names(ramclustObj))
+    if(length(r)>0) {
+      ramclustObj <- ramclustObj[-r]
+    }
+    rm(r)
+  }
+  if (is.null(mat.dir)) {
+    mat.dir = paste0(getwd(), "/spectra/mat")
+  }
+  
+  if(is.null(ramclustObj$history)) {
+    ramclustObj$history <- ""
+  }
+  
+  findmain.summary <- ramclustObj$findmain.summary
+  
+  ## find all structure output files: 
+  struc.files <- list.files(mat.dir, pattern = '.sfd', recursive = TRUE, full.names = TRUE)
+  
+  ## separate out spectal search results
+  is.spec.db <- grep("Spectral", struc.files)
+  spec.files <- struc.files[is.spec.db]
+  rm(struc.files)
+  # struc.files <- struc.files[-is.spec.db]
+  
+  ## read in spectral match results
+  spec.path <- lapply(1:length(spec.files), FUN = function(x) {
+    unlist(strsplit(spec.files[x], "/", fixed = TRUE))
+  })
+  spec.path <- t(data.frame(spec.path))
+  # hypothesis <- as.character(spec.path[,(ncol(spec.path)-1)])
+  cmpd       <- as.vector(spec.path[,(ncol(spec.path)-1)])
+  
+  spec.results <- data.frame(
+    'cmpd' = vector(mode = 'character', length = 0),
+    'rt' = vector(mode =  'numeric', length = 0),
+    'median.signal.intensity'= vector(mode =  'numeric', length = 0),
+    'compound.name' = vector(mode = 'character', length = 0),
+    'inchikey'   = vector(mode = 'character', length = 0),
+    'dbs'        = vector(mode = 'character', length = 0),
+    'spectral.match.score'  = vector(mode =  'numeric', length = 0),
+    'direct.parent.class'   = vector(mode = "character", length = 0),
+    'chemontid'  = vector(mode = 'character', length = 0)
+  )
+  
+  for(i in 1:length(spec.files)) {
+    tmp <- readLines(spec.files[i])
+    tmp.names <- grep("NAME: ", tmp)
+    if(length(tmp.names) > 0) {
+      tmp.scores <- grep("TotalScore:", tmp)
+      tmp.inchikey <- grep("INCHIKEY: ", tmp)
+      tmp.dbs     <- grep("RESOURCES: ", tmp)
+      tmp.subclass<- grep("Ontology: ", tmp)
+      tmp.chemontid<- grep("OntologyID: ", tmp)
+      same.length <- all.equal(
+        length(tmp.names),
+        length(tmp.scores),
+        length(tmp.inchikey),
+        length(tmp.dbs),
+        length(tmp.subclass),
+        length(tmp.chemontid)
+      )
+      if((length(tmp.names)>0) & same.length) {
+        tmp.out <- data.frame(
+          'cmpd'       = rep(cmpd[i], length(tmp.names)),
+          'rt'         = rep(ramclustObj$clrt[as.integer(as.numeric(gsub("C", "", cmpd[i])))], length(tmp.names)),
+          'median.signal.intensity' = rep(median(ramclustObj$SpecAbund[,as.integer(as.numeric(gsub("C", "", cmpd[i])))], na.rm = TRUE), length(tmp.names)),
+          'compound.name'   = gsub("NAME: ", "", tmp[tmp.names]),
+          'inchikey'   = gsub("INCHIKEY: ", "", tmp[tmp.inchikey]),
+          'dbs'        = gsub("RESOURCES: ", "", tmp[tmp.dbs]),
+          'spectral.match.score'      = as.numeric(gsub("TotalScore: ", "", tmp[tmp.scores])),
+          'direct.parent.class'   = gsub("Ontology: ", "", tmp[tmp.subclass]),
+          'chemontid'  = gsub("OntologyID: ", "", tmp[tmp.chemontid])
+        )
+      }
+      if(nrow(tmp.out)>0) {
+        spec.results <- rbind(spec.results, tmp.out)
+      }
+    }
+  }
+  
+  spec.results <- data.frame(
+    'assigned' = rep(FALSE, nrow(spec.results)),
+    spec.results
+  )
+  
+  if(adj.score) {
+    spec.results$spectral.match.score <- spec.results$spectral.match.score^0.5
+  }
+  spec.results$spectral.match.score <- spec.results$spectral.match.score^0.5
+  ## assign database priority score, if applicable
+  if(!is.null(priority.db)) {
+    priority.factor.v <- rep(priority.db.factor, nrow(spec.results))
+    for(i in 1:length(priority.db)) {
+      db.match <- grep(priority.db[i], spec.results$dbs, ignore.case = TRUE)
+      priority.factor.v[db.match] <- 1
+    }
+    spec.results$db.priority.factor <- priority.factor.v
+    spec.results$total.score <- spec.results$spectral.match.score * priority.factor.v
+  }
+  
+  
+  ## assign inchikey priority score, if applicable
+  if(!is.null(priority.inchikey)) {
+    priority.factor.v <- rep(priority.inchikey.factor, nrow(spec.results))
+    short.inchikey.priority <- sapply(priority.inchikey, FUN = function(x) {
+      unlist(strsplit(x, "-"))[1]
+    })
+    short.inchikey.struc <- sapply(spec.results$inchikey, FUN = function(x) {
+      unlist(strsplit(x, "-"))[1]
+    })
+    inchi.match <- short.inchikey.struc %in% short.inchikey.priority
+    priority.factor.v[inchi.match] <- 1
+    spec.results$inchikey.priority.factor <- priority.factor.v
+    spec.results$total.score <- spec.results$spectral.match.score * priority.factor.v
+  }
+  
+  if(is.null(spec.results$total.score)) {
+    spec.results$total.score <- spec.results$spectral.match.score
+  }
+  
+  ## reset annotations
+  ramclustObj$ann  <- ramclustObj$cmpd
+  
+  ## update structure table
+  # ramclustObj$use.spectral.match <- rep(FALSE, length(ramclustObj$cmpd))
+  
+  for(i in 1:length(ramclustObj$ann)) {
+    if(ramclustObj$ann[i] != ramclustObj$cmpd[i]) next
+    cmpd.match <- which(spec.results$cmpd == ramclustObj$cmpd[i])
+    if(length(cmpd.match)==0) next
+    ann.sub <- spec.results[cmpd.match,]
+    ramclustObj$use.spectral.match[i] <- TRUE
+    sp.m.index <- which.max(ann.sub$total.score)
+    spec.results$assigned[cmpd.match[sp.m.index]] <- TRUE
+    ramclustObj$ann[i] <-  ann.sub$compound.name[sp.m.index]
+    ramclustObj$inchikey <- ann.sub$spectral.match.inchikey[sp.m.index]
+    ramclustObj$spectral.match.score[i] <- ann.sub$spectral.match.score[sp.m.index]
+  }
+  
+  ramclustObj$annotations.full <- spec.results
+  ramclustObj$annotations.selected <- spec.results[which(spec.results$assigned),2:ncol(spec.results)]
+  
+  ramclustObj$history$msfinder <- paste(
+    "MSFinder (Tsugawa 2016) was used for spectral matching.",
+    "Results were imported into the RAMClustR object.", 
+    "A total of", nrow(spec.results), "spectral matches were were evaluated", 
+    "for", length(unique(spec.results$cmpd)), "compounds.", 
+    "A complete spreadsheet of all spectral matches can be found in the 'spectra/all.spectral.matches.csv' file,",
+    "and a subset of only those selected for annotation can be found in the 'spectra/assigned.annotations.csv' file.")
+  
+  
+  
+  if(!is.null(priority.db)) {
+    ramclustObj$history$msfinder <-paste(
+      as.character(ramclustObj$history$msfinder),
+      "The following database(s) were assigned as 'priority': ", paste0(paste(priority.db, collapse = ', '), "."),
+      "The database priority.factor was set to", priority.db.factor, "to decrease spectral match scores for compounds which failed to match priority database(s)."
+    )
+  }
+  
+  if(!is.null(priority.inchikey)) {
+    ramclustObj$history$msfinder <-paste(
+      as.character(ramclustObj$history$msfinder),
+      "The a list of",  length(priority.inchikey), "inchikeys was provided.", 
+      "The inchikey priority.factor was set to", priority.inchikey.factor, "to decrease scores for compounds with non-matching inchikey(s)."
+    )
+  }
+  ramclustObj$history$msfinder <-paste(
+    as.character(ramclustObj$history$msfinder),
+    "The highest spectral match score was selected for each compound, considering all matches and any relevent score adjustments for inchikey or database prioritization."
+  )
+  
+  ## write annotaion tables to 'spectra' directory
+  out.dir <- gsub(basename(mat.dir), "",  mat.dir)
+  write.csv(ramclustObj$annotations.full, file = paste0(out.dir, "all.spectral.matches.csv"), row.names = FALSE)
+  write.csv(ramclustObj$annotations.selected, file = paste0(out.dir, "assigned.annotations.csv"), row.names = FALSE)
+  return(ramclustObj)
+}
+
+
