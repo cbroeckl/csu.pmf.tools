@@ -14,20 +14,25 @@ normalize.intensity <- function(x, ...) {
 
 round.masses <- function(x, ...) {
   x[, 1] <- round(x[, 1])
-  xdata:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAASCAYAAABWzo5XAAAAWElEQVR42mNgGPTAxsZmJsVqQApgmGw1yApwKcQiT7phRBuCzzCSDSHGMKINIeDNmWQlA2IigKJwIssQkHdINgxfmBBtGDEBS3KCxBc7pMQgMYE5c/AXPwAwSX4lV3pTWwAAAABJRU5ErkJggg==
+  x
 }
 
 remove.low.intensity.signals <- function(x, min.int, ...) {
-  x > max(x[,2], na.rm = TRUE) * min.int
-  x
+  x.orig <- x
+  x <- x[which(x[,2] >= (max(x[,2])*min.int)),,drop = FALSE]
+  # if(nrow(x) < 2) {
+  #   x.orig
+  # } else {
+    x
+  # }
 }
 
 filter.by.mass <- function(x, mz.min, mz.max, ...) {
   x.orig <- x
   x <- x[which(x[,1] >= mz.min & x[,1] <= mz.max),,drop = FALSE]
-  if(nrow(x) < 2) {
-    x.orig
-  } else {
+  # if(nrow(x) < 2) {
+  #   x.orig
+  # } else {
     x
-  }
+  # }
 }
