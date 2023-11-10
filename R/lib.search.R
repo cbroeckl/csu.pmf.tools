@@ -1,4 +1,32 @@
-## Spectral searching of LC or GC MS data using R based tools
+#' lib.search
+#'
+#' spectral searching using Spectra::compare function(s) 
+#' @param prod.tol.ppm allowable product ion mass error in spectral matching in parts per million.  generally, use ~ 15 for TOF, 500 for quad. 
+#' @param prec.tol.ppm allowable precursor ion mass error in spectral matching in parts per million.  generally, use ~ 15 for TOF, 500 for quad. Note though that quad isolation is NOT accurate mass, so you could consider using a larger window to account for potential chimeric spectra.
+#' @param r.sigma retention time (or index) sigma for adjusting spectral match scores when retention similarity is used. use similarly to RAMClustR retention time similarity calculation. 
+#' @param exp.spectra experimental spectra, as an R object of class 'Spectra' produced from the Spectra package
+#' @param exp.rt experimental spectra retention times (if desired for retention time matching).  Use only one of exp.rt or exp.ri.
+#' @param exp.ri experimental spectra retention index (if desired for retention index matching). Use only one of exp.rt or exp.ri.
+#' @param exp.precursor experimental precursor masses (if desired for precursor selective spectral matching)
+#' @param lib.spectra library spectra, as an R object of class 'Spectra' produced from the Spectra package
+#' @param lib.rt library spectra retention times (if desired for retention time matching)
+#' @param lib.ri library spectra retention index (if desired for retention index matching)
+#' @param lib.precursor library precursor masses (if desired for precursor selective spectral matching)
+#' @param n.cores how many parallel threads to use
+#' @param block.size number of library spectra to search at once - multiple smaller blocks appear to be appreciably faster than one larger block.
+#' @param min.score minimum match score for results to be returned.  
+#' @details this function searches experimental spectra against library spectra, returning the cosine similarity scores for all matches with score > min.score. 
+#' @return a matrix including columns for the index of the experimental spectrum, the index of the library spectrum, the spectral similarity score, a retention index (or time) similarity score, and a the total score, which is the product of the spectral and retention time similarities. 
+#' @references Broeckling CD, Afsar FA, Neumann S, Ben-Hur A, Prenni JE. RAMClust: a novel feature clustering method enables spectral-matching-based annotation for metabolomics data. Anal Chem. 2014 Jul 15;86(14):6812-7. doi: 10.1021/ac501530d.  Epub 2014 Jun 26. PubMed PMID: 24927477.
+#' @concept ramclustR
+#' @concept RAMClustR
+#' @concept metabolomics
+#' @concept mass spectrometry
+#' @concept spectral matching
+#' @author Corey Broeckling
+#' @export
+#' 
+#' 
 lib.search <- function(
     prod.tol.ppm = NULL,
     prec.tol.ppm = NULL,
