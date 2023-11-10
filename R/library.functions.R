@@ -14,11 +14,11 @@ normalize.intensity <- function(x, ...) {
 
 round.masses <- function(x, ...) {
   x[, 1] <- round(x[, 1])
-  x
+  xdata:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAASCAYAAABWzo5XAAAAWElEQVR42mNgGPTAxsZmJsVqQApgmGw1yApwKcQiT7phRBuCzzCSDSHGMKINIeDNmWQlA2IigKJwIssQkHdINgxfmBBtGDEBS3KCxBc7pMQgMYE5c/AXPwAwSX4lV3pTWwAAAABJRU5ErkJggg==
 }
 
 remove.low.intensity.signals <- function(x, min.int, ...) {
-  x > max(x[,2], na.rm = TRUE) * 0.02
+  x > max(x[,2], na.rm = TRUE) * min.int
   x
 }
 
