@@ -54,7 +54,8 @@ doFindmain <- function (
     plot.findmain = TRUE, 
     writeMat = TRUE,
     writeMS = FALSE,
-    writeMGF = TRUE
+    writeMGF = FALSE,
+    writeMSP = FALSE
 ) 
 {
   
@@ -127,7 +128,7 @@ doFindmain <- function (
     ramclustObj$ms1.spectrum[[cl]] <- s
     ramclustObj$ms2.spectrum[[cl]] <- s2
     
-    out <- InterpretMSSpectrum::findMAIN(
+    out.fm <- InterpretMSSpectrum::findMAIN(
       s, 
       rules = c(ads), 
       adducthyp = ads[grep("[M",ads, fixed = TRUE)], 
@@ -136,10 +137,10 @@ doFindmain <- function (
       ppm = ppm.error,
       mainpkthr = mainpkthr
     )
-    summarytable <- summary(out)
-    fm.out <- summarytable
+    fm.out <- summary(out.fm)
+    fm.max <- max(fm.out$total_score)
     
-    out <- InterpretMSSpectrum::findMAIN(
+    out.rc <- InterpretMSSpectrum::findMAIN(
       s, 
       adductmz = NULL, 
       ionmode = mode, 
@@ -150,22 +151,37 @@ doFindmain <- function (
       ppm = ppm.error, 
       mainpkthr = mainpkthr, 
       collapseResults = FALSE)
-    summarytable <- summary(out)
-    rc.out <- data.frame('index' = 1:nrow(summarytable),  summarytable)
+    rc.out <- summary(out)
+    rc.max <- max(rc.out$total_score)
     
-    sum.score <- merge(rc.out, fm.out, by = 'neutral_mass')
-    sum.score <- data.frame(sum.score, 'total.score' = (sum.score$total_score.x + sum.score$total_score.y)/2)
-    if(nrow(sum.score) == 0) {
+    if(rc.max > fm.max) {
       sum.score <- rc.out
+      sum.score$score.method <- rep("rc", nrow(sum.score))
+    } else {
+      sum.score <- fm.out
+      sum.score$score.method <- rep("fm", nrow(sum.score))
     }
-    sum.score <- sum.score[order(sum.score$total.score, decreasing = TRUE),]
-    sum.score <- sum.score[which(sum.score$total.score >= (max(sum.score$total.score * 0.90))),]
     
+    
+    # sum.score <- merge(rc.out, fm.out, by = 'neutral_mass')
+    # sum.score <- data.frame(sum.score, 'total.score' = (sum.score$total_score.x + sum.score$total_score.y)/2)
+    # if(nrow(sum.score) == 0) {
+    #   sum.score <- rc.out
+    # }
+    sum.score <- sum.score[order(sum.score$total_score, decreasing = TRUE),]
+    sum.score <- sum.score[which(sum.score$total_score >= (max(sum.score$total_score * 0.90))),]
+    redund <- which(sum.score$total_score == max(sum.score$total_score))
+    rem.redund <- redund[-which.max(sum.score$adducts_explained[redund]/sum.score$medppm[redund])]
+    sum.score <- sum.score[-rem.redund,]
     
     out.list <- as.list(rep(NA, 2))
     names(out.list) <- c("summary", "details")
     out.list[[1]] <- sum.score
-    out.list[[2]] <- out[sum.score$index]
+    if(sum.score$score.method[1] == "rc") {
+      out.list[[2]] <- out.rc[as.numeric(row.names(sum.score))]
+    } else {
+      out.list[[2]] <- out.fm[as.numeric(row.names(sum.score))]
+    }
     
     if (100 * round(cl/100, digits = 0) == cl) {
       cat(cl, "of", max(ramclustObj$featclus), "\n")
@@ -180,14 +196,18 @@ doFindmain <- function (
   sum.table <- data.frame(
     'cmpd' = vector(mode = 'character', length = 0),
     'hypothesis' = vector(mode = 'character', length = 0),
-    'findmain.score' = vector(mode = 'numeric', length = 0)
+    'findmain.score' = vector(mode = 'numeric', length = 0),
+    'masses.explained' = vector(mode = 'integer', length = 0),
+    'median.ppm' = vector(mode = 'numeric', length = 0)
   )
   for (cl in cmpd) {
     tmp <- findmain[[cl]]$summary
     sub.sum.table <- data.frame(
       'cmpd' = rep(ramclustObj$cmpd[cl], nrow(tmp)),
       'hypothesis' = paste0(ramclustObj$cmpd[cl], ".", formatC((1:nrow(tmp)), width = 2, flag = 0)),
-      'findmain.score' = tmp$total.score
+      'findmain.score' = tmp$total_score,
+      'masses.explained' = tmp$adducts_explained,
+      'median.ppm' = tmp$medppm
     )
     sum.table <- rbind(sum.table, sub.sum.table)
   }
