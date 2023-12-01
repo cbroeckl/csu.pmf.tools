@@ -73,11 +73,19 @@ annotate.msfinder <- function (ramclustObj = NULL,
   ## separate out spectal search results
   is.spec.db <- grep("Spectral", struc.files)
   spec.files <- struc.files[is.spec.db]
-  struc.files <- struc.files[-is.spec.db]
+  if(length(is.spec.db)>0) {
+    struc.files <- struc.files[-is.spec.db]
+  }
+  
   
   ###############################
   ## read in parameters file
-  msf.params <- readLines(msf.form.param.file)
+  if(length(msf.form.param.file)>0) {
+    msf.params <- readLines(msf.form.param.file)
+  } else {
+    msf.params <- 'no batch param file found'
+  }
+  
   
   
   
@@ -200,91 +208,93 @@ annotate.msfinder <- function (ramclustObj = NULL,
   
   ## calculate a total score for each annotation hypothesis
   struc.results$total.score <- round(2*struc.results$structure.score * struc.results$formula.score * struc.results$findmain.score, digits = 2)
-  
+  struc.results$assigned <- rep(FALSE, nrow(struc.results))
   
   ## read in spectral match results
-  spec.path <- lapply(1:length(spec.files), FUN = function(x) {
-    unlist(strsplit(spec.files[x], "/", fixed = TRUE))
-  })
-  spec.path <- t(data.frame(spec.path))
-  hypothesis <- as.character(spec.path[,(ncol(spec.path)-1)])
-  cmpd       <- sapply(1:length(hypothesis), FUN = function(x) {
-    strsplit(hypothesis[x], ".", fixed = TRUE)[[1]][1]
-  }
-  )
-  
-  spec.results <- data.frame(
-    'cmpd' = vector(mode = 'character', length = 0),
-    'hypothesis' = vector(mode = 'character', length = 0),
-    'compound.name' = vector(mode = 'character', length = 0),
-    'inchikey'   = vector(mode = 'character', length = 0),
-    'dbs'        = vector(mode = 'character', length = 0),
-    'spectral.match.score'  = vector(mode =  'numeric', length = 0),
-    'subclass'   = vector(mode = "character", length = 0),
-    'chemontid'  = vector(mode = 'character', length = 0)
-  )
-  
-  for(i in 1:length(spec.files)) {
-    tmp <- readLines(spec.files[i])
-    tmp.names <- grep("NAME: ", tmp)
-    if(length(tmp.names) > 0) {
-      tmp.scores <- grep("TotalScore:", tmp)
-      tmp.inchikey <- grep("INCHIKEY: ", tmp)
-      tmp.dbs     <- grep("RESOURCES: ", tmp)
-      tmp.subclass<- grep("Ontology: ", tmp)
-      tmp.chemontid<- grep("OntologyID: ", tmp)
-      same.length <- all.equal(
-        length(tmp.names),
-        length(tmp.scores),
-        length(tmp.inchikey),
-        length(tmp.dbs),
-        length(tmp.subclass),
-        length(tmp.chemontid)
-      )
-      if((length(tmp.names)>0) & same.length) {
-        tmp.out <- data.frame(
-          'cmpd'       = rep(cmpd[i], length(tmp.names)),
-          'hypothesis' = rep(hypothesis[i], length(tmp.names)),
-          'compound.name'   = gsub("NAME: ", "", tmp[tmp.names]),
-          'inchikey'   = gsub("INCHIKEY: ", "", tmp[tmp.inchikey]),
-          'dbs'        = gsub("RESOURCES: ", "", tmp[tmp.dbs]),
-          'spectral.match.score'      = as.numeric(gsub("TotalScore: ", "", tmp[tmp.scores])),
-          'subclass'   = gsub("Ontology: ", "", tmp[tmp.subclass]),
-          'chemontid'  = gsub("OntologyID: ", "", tmp[tmp.chemontid])
-        )
-      }
-      if(nrow(tmp.out)>0) {
-        spec.results <- rbind(spec.results, tmp.out)
-      }
+  if(length(spec.files) > 0) {
+    spec.path <- lapply(1:length(spec.files), FUN = function(x) {
+      unlist(strsplit(spec.files[x], "/", fixed = TRUE))
+    })
+    spec.path <- t(data.frame(spec.path))
+    hypothesis <- as.character(spec.path[,(ncol(spec.path)-1)])
+    cmpd       <- sapply(1:length(hypothesis), FUN = function(x) {
+      strsplit(hypothesis[x], ".", fixed = TRUE)[[1]][1]
     }
-  }
-  
-  struc.results <- data.frame(
-    'assigned' = rep(FALSE, nrow(struc.results)),
-    struc.results,
-    'spectral.match.score' = rep(NA, nrow(struc.results)),
-    'spectral.match.name'  = rep(NA, nrow(struc.results)),
-    'spectral.match.inchikey' = rep(NA, nrow(struc.results))
-  )
-  
-  if(length(spec.results) > 0) {
-    cmpds <- unique(spec.results$cmpd)
-    if(length(cmpds) > 0) {
-      for(i in 1:length(cmpds)) {
-        tmp <- spec.results[which(spec.results$cmpd == cmpds[i]),]
-        tmp <- tmp[which.max(tmp$spectral.match.score),]
-        cmpd.match <- which(struc.results$cmpd == tmp$cmpd[1])
-        if(length(cmpd.match)>0) {
-          struc.results[cmpd.match, "spectral.match.score"] <- as.numeric(tmp$spectral.match.score[1])
-          struc.results[cmpd.match, "spectral.match.name"] <- as.character(tmp$compound.name[1])
-          struc.results[cmpd.match, "spectral.match.inchikey"] <- as.character(tmp$inchikey[1])
+    )
+    
+    spec.results <- data.frame(
+      'cmpd' = vector(mode = 'character', length = 0),
+      'hypothesis' = vector(mode = 'character', length = 0),
+      'compound.name' = vector(mode = 'character', length = 0),
+      'inchikey'   = vector(mode = 'character', length = 0),
+      'dbs'        = vector(mode = 'character', length = 0),
+      'spectral.match.score'  = vector(mode =  'numeric', length = 0),
+      'subclass'   = vector(mode = "character", length = 0),
+      'chemontid'  = vector(mode = 'character', length = 0)
+    )
+    
+    for(i in 1:length(spec.files)) {
+      tmp <- readLines(spec.files[i])
+      tmp.names <- grep("NAME: ", tmp)
+      if(length(tmp.names) > 0) {
+        tmp.scores <- grep("TotalScore:", tmp)
+        tmp.inchikey <- grep("INCHIKEY: ", tmp)
+        tmp.dbs     <- grep("RESOURCES: ", tmp)
+        tmp.subclass<- grep("Ontology: ", tmp)
+        tmp.chemontid<- grep("OntologyID: ", tmp)
+        same.length <- all.equal(
+          length(tmp.names),
+          length(tmp.scores),
+          length(tmp.inchikey),
+          length(tmp.dbs),
+          length(tmp.subclass),
+          length(tmp.chemontid)
+        )
+        if((length(tmp.names)>0) & same.length) {
+          tmp.out <- data.frame(
+            'cmpd'       = rep(cmpd[i], length(tmp.names)),
+            'hypothesis' = rep(hypothesis[i], length(tmp.names)),
+            'compound.name'   = gsub("NAME: ", "", tmp[tmp.names]),
+            'inchikey'   = gsub("INCHIKEY: ", "", tmp[tmp.inchikey]),
+            'dbs'        = gsub("RESOURCES: ", "", tmp[tmp.dbs]),
+            'spectral.match.score'      = as.numeric(gsub("TotalScore: ", "", tmp[tmp.scores])),
+            'subclass'   = gsub("Ontology: ", "", tmp[tmp.subclass]),
+            'chemontid'  = gsub("OntologyID: ", "", tmp[tmp.chemontid])
+          )
+        }
+        if(nrow(tmp.out)>0) {
+          spec.results <- rbind(spec.results, tmp.out)
         }
       }
     }
+    
+    struc.results <- data.frame(
+      struc.results,
+      'spectral.match.score' = rep(NA, nrow(struc.results)),
+      'spectral.match.name'  = rep(NA, nrow(struc.results)),
+      'spectral.match.inchikey' = rep(NA, nrow(struc.results))
+    )
+    
+    if(length(spec.results) > 0) {
+      cmpds <- unique(spec.results$cmpd)
+      if(length(cmpds) > 0) {
+        for(i in 1:length(cmpds)) {
+          tmp <- spec.results[which(spec.results$cmpd == cmpds[i]),]
+          tmp <- tmp[which.max(tmp$spectral.match.score),]
+          cmpd.match <- which(struc.results$cmpd == tmp$cmpd[1])
+          if(length(cmpd.match)>0) {
+            struc.results[cmpd.match, "spectral.match.score"] <- as.numeric(tmp$spectral.match.score[1])
+            struc.results[cmpd.match, "spectral.match.name"] <- as.character(tmp$compound.name[1])
+            struc.results[cmpd.match, "spectral.match.inchikey"] <- as.character(tmp$inchikey[1])
+          }
+        }
+      }
+    }
+    
   }
   
   if(!is.null(priority.db)) {
-    priority.factor.v <- rep(priority.factor, nrow(struc.results))
+    priority.factor.v <- rep(priority.db.factor, nrow(struc.results))
     for(i in 1:length(priority.db)) {
       db.match <- grep(priority.db[i], struc.results$dbs, ignore.case = TRUE)
       priority.factor.v[db.match] <- 1
@@ -296,7 +306,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
   
   
   if(!is.null(priority.inchikey)) {
-    priority.factor.v <- rep(priority.factor, nrow(struc.results))
+    priority.factor.v <- rep(priority.inchikey.factor, nrow(struc.results))
     short.inchikey.priority <- sapply(priority.inchikey, FUN = function(x) {
       unlist(strsplit(x, "-"))[1]
     })
@@ -345,6 +355,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
         ramclustObj$ms2.spectrum[[i]][order(ramclustObj$ms2.spectrum[[i]][,1]),],
         fm[3:ncol(fm)]
       )
+      ramclustObj$ann[i] <- ann.sub$compound.name[best.score]
       ramclustObj$M[i] <- fm.sum$neutral_mass[1]
       ramclustObj$formula[i] <- ann.sub$formula[best.score]
       ramclustObj$inchikey[i] <- ann.sub$inchikey[best.score]
@@ -369,7 +380,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
     "for", length(unique(struc.results$cmpd)), "compounds.", 
     "A complete spreadsheet of all annotation hypothesis and scores can be found in the 'spectra/all.annotations.csv' file,",
     "and a subset of only those selected for annotation can be found in the 'spectra/assigned.annotations.csv' file.",
-    "Spectra matches too precedence over computational inference based annotations.")
+    "Spectra matches (when available) took precedence over computational inference based annotations.")
   
   if(!is.null(priority.db)) {
     ramclustObj$history$msfinder <-paste(
@@ -382,10 +393,11 @@ annotate.msfinder <- function (ramclustObj = NULL,
   if(!is.null(priority.inchikey)) {
     ramclustObj$history$msfinder <-paste(
       as.character(ramclustObj$history$msfinder),
-      "The a list of",  length(priority.inchikey), "inchikeys was provided.", 
-      "The inchikey priority.factor was set to", priority.inchikey.factor, "to decrease scores for non-matching databases."
+      "A list of",  length(priority.inchikey), "inchikeys was provided as a custom metabolite database.", 
+      "The inchikey priority.factor was set to", priority.inchikey.factor, "to decrease scores for non-matching compounds"
     )
   }
+  
   ramclustObj$history$msfinder <-paste(
     as.character(ramclustObj$history$msfinder),
     "The highest total score was selected for each compound, considering all hypotheses."
@@ -397,7 +409,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
 
 
 
-#' annotate.msfinder
+#' annotate.msfinder.gcei
 #'
 #' After running MSFinder on .mat or .msp files, import the formulas that were predicted and their scores 
 #' @param ramclustObj R object - the ramclustR object which was used to write the .mat or .msp files
