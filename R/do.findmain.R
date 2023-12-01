@@ -151,7 +151,7 @@ doFindmain <- function (
       ppm = ppm.error, 
       mainpkthr = mainpkthr, 
       collapseResults = FALSE)
-    rc.out <- summary(out)
+    rc.out <- summary(out.rc)
     rc.max <- max(rc.out$total_score)
     
     if(rc.max > fm.max) {
