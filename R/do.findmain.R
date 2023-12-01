@@ -155,7 +155,7 @@ doFindmain <- function (
     rc.out <- summary(out.rc)
     rc.max <- max(rc.out$total_score)
     
-    if(rc.max > fm.max) {
+    if(rc.max >= fm.max) {
       sum.score <- rc.out
       sum.score$score.method <- rep("rc", nrow(sum.score))
     } else {
@@ -173,8 +173,10 @@ doFindmain <- function (
     sum.score <- sum.score[which(sum.score$total_score >= (max(sum.score$total_score * 0.90))),]
     redund <- which(sum.score$total_score == max(sum.score$total_score))
     if(length(redund) > 1) {
-      rem.redund <- redund[-which.max(sum.score$adducts_explained[redund]/sum.score$medppm[redund])]
-      sum.score <- sum.score[-rem.redund,]
+      if(max(sum.score$adducts_explained[redund]) >1) {
+        rem.redund <- redund[-which.max(sum.score$adducts_explained[redund]/sum.score$medppm[redund])]
+        sum.score <- sum.score[-rem.redund,]
+      } 
     }
     
     
