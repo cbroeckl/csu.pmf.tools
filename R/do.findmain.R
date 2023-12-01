@@ -137,6 +137,7 @@ doFindmain <- function (
       ppm = ppm.error,
       mainpkthr = mainpkthr
     )
+    
     fm.out <- summary(out.fm)
     fm.max <- max(fm.out$total_score)
     
@@ -171,8 +172,11 @@ doFindmain <- function (
     sum.score <- sum.score[order(sum.score$total_score, decreasing = TRUE),]
     sum.score <- sum.score[which(sum.score$total_score >= (max(sum.score$total_score * 0.90))),]
     redund <- which(sum.score$total_score == max(sum.score$total_score))
-    rem.redund <- redund[-which.max(sum.score$adducts_explained[redund]/sum.score$medppm[redund])]
-    sum.score <- sum.score[-rem.redund,]
+    if(length(redund) > 1) {
+      rem.redund <- redund[-which.max(sum.score$adducts_explained[redund]/sum.score$medppm[redund])]
+      sum.score <- sum.score[-rem.redund,]
+    }
+    
     
     out.list <- as.list(rep(NA, 2))
     names(out.list) <- c("summary", "details")
