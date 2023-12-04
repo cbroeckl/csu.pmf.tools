@@ -317,6 +317,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
     struc.results$total.score <- struc.results$total.score * priority.factor.v
   }
   
+  cat(" -- finished import", '\n')
 
   ramclustObj$M <- rep(NA, length(ramclustObj$cmpd))
   ramclustObj$formula <- rep(NA, length(ramclustObj$cmpd))
