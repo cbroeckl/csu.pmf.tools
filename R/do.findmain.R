@@ -201,19 +201,25 @@ doFindmain <- function (
   # generate master findmain summary table
   sum.table <- data.frame(
     'cmpd' = vector(mode = 'character', length = 0),
-    'hypothesis' = vector(mode = 'character', length = 0),
-    'findmain.score' = vector(mode = 'numeric', length = 0),
-    'masses.explained' = vector(mode = 'integer', length = 0),
-    'median.ppm' = vector(mode = 'numeric', length = 0)
+    'fm.hypothesis' = vector(mode = 'character', length = 0),
+    'fm.mz' = vector(mode = 'numeric', length = 0),
+    'fm.adduct' = vector(mode = 'character', length = 0),
+    'fm.m' = vector(mode = 'numeric', length = 0),
+    'fm.score' = vector(mode = 'numeric', length = 0),
+    'fm.masses.explained' = vector(mode = 'integer', length = 0),
+    'fm.median.ppm' = vector(mode = 'numeric', length = 0)
   )
   for (cl in cmpd) {
     tmp <- findmain[[cl]]$summary
     sub.sum.table <- data.frame(
       'cmpd' = rep(ramclustObj$cmpd[cl], nrow(tmp)),
-      'hypothesis' = paste0(ramclustObj$cmpd[cl], ".", formatC((1:nrow(tmp)), width = 2, flag = 0)),
-      'findmain.score' = tmp$total_score,
-      'masses.explained' = tmp$adducts_explained,
-      'median.ppm' = tmp$medppm
+      'fm.hypothesis' = paste0(ramclustObj$cmpd[cl], ".", formatC((1:nrow(tmp)), width = 2, flag = 0)),
+      'fm.mz' = tmp$adductmz,
+      'fm.adduct' = tmp$adducthyp,
+      'fm.m' = tmp$neutral_mass,
+      'fm.score' = tmp$total_score,
+      'fm.masses.explained' = tmp$adducts_explained,
+      'fm.median.ppm' = tmp$medppm
     )
     sum.table <- rbind(sum.table, sub.sum.table)
   }
