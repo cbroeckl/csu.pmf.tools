@@ -101,7 +101,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
     'formula' = vector(mode = 'character', length = 0),
     'formula.score'   = vector(mode =  'numeric', length = 0)
   )
-  
+  ## form.files <- form.files[1:100]
   for(i in 1:length(form.files)) {
     tmp <- readLines(form.files[i])
     tmp.names <- grep("NAME: ", tmp)
@@ -126,6 +126,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
   }
   
   ## read in structure results
+  ## struc.files <- struc.files[1:100]
   struc.path <- lapply(1:length(struc.files), FUN = function(x) {
     unlist(strsplit(struc.files[x], "/", fixed = TRUE))
   })
@@ -199,15 +200,12 @@ annotate.msfinder <- function (ramclustObj = NULL,
   struc.results$formula.score <- form.results$formula.score[struc.to.form]
   
   ## bring findmain score into structure table 
-  struc.to.findmain <- match(
-    struc.results$hypothesis ,
-    findmain.summary$hypothesis
-  )
-  struc.results$findmain.score <- findmain.summary$findmain.score[struc.to.findmain]
-  
+  struc.results <- merge(findmain.summary, struc.results, by.x = "fm.hypothesis", by.y = "hypothesis", keep = 'all')
+  names(struc.results) <- gsub("cmpd.x", "cmpd", names(struc.results))
+  struc.results <- struc.results[,-grep("cmpd.y", names(struc.results))]
   
   ## calculate a total score for each annotation hypothesis
-  struc.results$total.score <- round(2*struc.results$structure.score * struc.results$formula.score * struc.results$findmain.score, digits = 2)
+  struc.results$total.score <- round(2*struc.results$structure.score * struc.results$formula.score * struc.results$fm.score, digits = 2)
   struc.results$assigned <- rep(FALSE, nrow(struc.results))
   
   ## read in spectral match results
@@ -319,6 +317,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
     struc.results$total.score <- struc.results$total.score * priority.factor.v
   }
   
+
   ramclustObj$M <- rep(NA, length(ramclustObj$cmpd))
   ramclustObj$formula <- rep(NA, length(ramclustObj$cmpd))
   ramclustObj$inchikey <- rep(NA, length(ramclustObj$cmpd))
@@ -329,6 +328,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
   ramclustObj$use.spectral.match <- rep(FALSE, length(ramclustObj$cmpd))
   ramclustObj$spectral.match.score <- rep(NA, length(ramclustObj$cmpd))
   
+  # for(i in 1:length(ramclustObj$ann[1:10])) {
   for(i in 1:length(ramclustObj$ann)) {
     if(ramclustObj$ann[i] != ramclustObj$cmpd[i]) next
     cmpd.match <- which(struc.results$cmpd == ramclustObj$cmpd[i])
@@ -345,7 +345,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
       ramclustObj$spectral.match.score[i] <- ann.sub$spectral.match.score[sp.m.index]
     } else {
       best.score <- which.max(ann.sub$total.score)
-      sel.hyp <- as.numeric(gsub(paste0(ramclustObj$cmpd[i], "."), "", ann.sub$hypothesis[best.score]))
+      sel.hyp <- as.numeric(gsub(paste0(ramclustObj$cmpd[i], "."), "", ann.sub$fm.hypothesis[best.score]))
       fm <- ramclustObj$findmain[[i]]$details[[sel.hyp]]
       fm <- fm[order(fm[,1]),]
       fm.sum <- ramclustObj$findmain[[i]]$summary[sel.hyp,]
@@ -359,16 +359,22 @@ annotate.msfinder <- function (ramclustObj = NULL,
       ramclustObj$M[i] <- fm.sum$neutral_mass[1]
       ramclustObj$formula[i] <- ann.sub$formula[best.score]
       ramclustObj$inchikey[i] <- ann.sub$inchikey[best.score]
-      ramclustObj$findmain.score[i] <- ann.sub$findmain.score[best.score]
+      ramclustObj$findmain.score[i] <- ann.sub$fm.score[best.score]
       ramclustObj$formula.score[i] <- ann.sub$formula.score[best.score]
       ramclustObj$structure.score[i] <- ann.sub$structure.score[best.score]
       ramclustObj$total.score[i] <- ann.sub$total.score[best.score]
     }
-    struc.results[cmpd.match,] <- ann.sub
+    # struc.results[cmpd.match,] <- ann.sub
   }
   
+  ## merge MSFinder results with findmain results based on formula hypothesis.
+  ## append results to ramclustObj.  
+  
+  
   ramclustObj$annotations.full <- struc.results
-  ramclustObj$annotations.selected <- struc.results[which(struc.results$assigned),2:ncol(struc.results)]
+  ramclustObj$annotations.selected <- struc.results[which(struc.results$assigned),]
+  
+
   
   ramclustObj$history$msfinder <- paste(
     "MSFinder (Tsugawa 2016) was used for spectral matching,",
