@@ -201,6 +201,7 @@ doFindmain <- function (
   # generate master findmain summary table
   sum.table <- data.frame(
     'cmpd' = vector(mode = 'character', length = 0),
+    'rt' = vector(mode = 'numeric', length = 0),
     'fm.hypothesis' = vector(mode = 'character', length = 0),
     'fm.mz' = vector(mode = 'numeric', length = 0),
     'fm.adduct' = vector(mode = 'character', length = 0),
@@ -213,6 +214,7 @@ doFindmain <- function (
     tmp <- findmain[[cl]]$summary
     sub.sum.table <- data.frame(
       'cmpd' = rep(ramclustObj$cmpd[cl], nrow(tmp)),
+      'rt' = rep(ramclustObj$clrt[cl], nrow(tmp)),
       'fm.hypothesis' = paste0(ramclustObj$cmpd[cl], ".", formatC((1:nrow(tmp)), width = 2, flag = 0)),
       'fm.mz' = tmp$adductmz,
       'fm.adduct' = tmp$adducthyp,
