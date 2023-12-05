@@ -211,7 +211,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
   struc.results$assigned <- rep(FALSE, nrow(struc.results))
   
   cat(" -- finished importing structure results", '\n')
-  cat(" -- ", length(spec.files), "spec files", '\n')
+  # cat(" -- ", length(struc.files), "spec files", '\n')
   
   ## read in spectral match results
   if(length(spec.files) > 0) {
