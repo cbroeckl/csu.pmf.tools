@@ -34,6 +34,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
   }
   
   home.dir <- getwd()
+  cat('annotate.msfinder mat.dir =', mat.dir, '\n')
   
   if(!is.null(priority.db) & !is.null(priority.inchikey)) {
     warning("both inchikey and database priority set - ensure they are independent. ", '\n')
@@ -52,7 +53,6 @@ annotate.msfinder <- function (ramclustObj = NULL,
   }
   if (is.null(mat.dir)) {
     mat.dir = paste0(getwd(), "/spectra/mat")
-    cat('mat.dir =', mat.dir, '\n')
   }
   
   if(is.null(ramclustObj$history)) {
