@@ -29,6 +29,8 @@ annotate.msfinder <- function (ramclustObj = NULL,
 ) 
 {
   
+  cat ('in annotate.msfinder function', '\n')
+  
   if(is.null(ramclustObj)) {
     stop("must supply ramclustObj as input.  i.e. ramclustObj = RC", '\n')
   }
