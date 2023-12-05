@@ -32,7 +32,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
   if(is.null(ramclustObj)) {
     stop("must supply ramclustObj as input.  i.e. ramclustObj = RC", '\n')
   }
-  
+  cat ('in annotate.msfinder function', '\n')
   home.dir <- getwd()
   cat('annotate.msfinder mat.dir =', mat.dir, '\n')
   
