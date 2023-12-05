@@ -151,6 +151,8 @@ annotate.msfinder <- function (ramclustObj = NULL,
   )
   
   for(i in 1:length(struc.files)) {
+    cat(i, " ")
+    cat(struc.files[i], '\n')
     tmp <- readLines(struc.files[i])
     tmp.names <- grep("NAME: ", tmp)
     if(length(tmp.names) > 0) {
@@ -294,7 +296,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
     
   }
   
-  cat(" -- importing", '\n')
+  cat(" -- importing complete", '\n')
   
   if(!is.null(priority.db)) {
     priority.factor.v <- rep(priority.db.factor, nrow(struc.results))
