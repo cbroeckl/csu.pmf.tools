@@ -52,6 +52,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
   }
   if (is.null(mat.dir)) {
     mat.dir = paste0(getwd(), "/spectra/mat")
+    cat('mat.dir =', mat.dir, '\n')
   }
   
   if(is.null(ramclustObj$history)) {
