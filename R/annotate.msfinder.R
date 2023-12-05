@@ -208,6 +208,9 @@ annotate.msfinder <- function (ramclustObj = NULL,
   struc.results$total.score <- round(2*struc.results$structure.score * struc.results$formula.score * struc.results$fm.score, digits = 2)
   struc.results$assigned <- rep(FALSE, nrow(struc.results))
   
+  cat(" -- finished importing structure results", '\n')
+  cat(" -- ", length(spec.files), "spec files", '\n')
+  
   ## read in spectral match results
   if(length(spec.files) > 0) {
     spec.path <- lapply(1:length(spec.files), FUN = function(x) {
@@ -291,6 +294,8 @@ annotate.msfinder <- function (ramclustObj = NULL,
     
   }
   
+  cat(" -- importing", '\n')
+  
   if(!is.null(priority.db)) {
     priority.factor.v <- rep(priority.db.factor, nrow(struc.results))
     for(i in 1:length(priority.db)) {
@@ -317,7 +322,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
     struc.results$total.score <- struc.results$total.score * priority.factor.v
   }
   
-  cat(" -- finished import", '\n')
+  cat(" -- rescoring", '\n')
 
   ramclustObj$M <- rep(NA, length(ramclustObj$cmpd))
   ramclustObj$formula <- rep(NA, length(ramclustObj$cmpd))
