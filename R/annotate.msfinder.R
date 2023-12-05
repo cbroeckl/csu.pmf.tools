@@ -70,6 +70,8 @@ annotate.msfinder <- function (ramclustObj = NULL,
   ## find all structure output files: 
   struc.files <- list.files(mat.dir, pattern = '.sfd', recursive = TRUE, full.names = TRUE)
   
+  cat("mat dir contains", length(form.files), 'formula files and', length(struc.files), 'structure.files', '\n')
+  
   ## separate out spectal search results
   is.spec.db <- grep("Spectral", struc.files)
   spec.files <- struc.files[is.spec.db]
@@ -85,11 +87,6 @@ annotate.msfinder <- function (ramclustObj = NULL,
   } else {
     msf.params <- 'no batch param file found'
   }
-  
-  
-  
-  
-  
   
   
   ###############################
