@@ -1,4 +1,4 @@
-#' annotate.msfinder2
+#' annotate.msfinder
 #'
 #' After running MSFinder on .mat or .msp files, import the formulas that were predicted and their scores 
 #' @param ramclustObj R object - the ramclustR object which was used to write the .mat or .msp files
@@ -20,7 +20,7 @@
 #' @author Corey Broeckling
 #' @export
 
-annotate.msfinder2 <- function (ramclustObj = NULL, 
+annotate.msfinder <- function (ramclustObj = NULL, 
                                mat.dir = NULL,
                                priority.db = NULL,
                                priority.inchikey = NULL,
@@ -29,14 +29,12 @@ annotate.msfinder2 <- function (ramclustObj = NULL,
 ) 
 {
   
-  cat ('in annotate.msfinder function', '\n')
   
   if(is.null(ramclustObj)) {
     stop("must supply ramclustObj as input.  i.e. ramclustObj = RC", '\n')
   }
-  cat ('in annotate.msfinder function', '\n')
+
   home.dir <- getwd()
-  cat('annotate.msfinder mat.dir =', mat.dir, '\n')
   
   if(!is.null(priority.db) & !is.null(priority.inchikey)) {
     warning("both inchikey and database priority set - ensure they are independent. ", '\n')
@@ -73,8 +71,6 @@ annotate.msfinder2 <- function (ramclustObj = NULL,
   ## find all structure output files: 
   struc.files <- list.files(mat.dir, pattern = '.sfd', recursive = TRUE, full.names = TRUE)
   
-  cat("mat dir contains", length(form.files), 'formula files and', length(struc.files), 'structure.files', '\n')
-  
   ## separate out spectal search results
   is.spec.db <- grep("Spectral", struc.files)
   spec.files <- struc.files[is.spec.db]
@@ -102,6 +98,9 @@ annotate.msfinder2 <- function (ramclustObj = NULL,
     'formula.score'   = vector(mode =  'numeric', length = 0)
   )
   ## form.files <- form.files[1:100]
+  
+  cat(" -- importing msfinder output files", '\n')
+  
   for(i in 1:length(form.files)) {
     tmp <- readLines(form.files[i])
     tmp.names <- grep("NAME: ", tmp)
@@ -151,8 +150,6 @@ annotate.msfinder2 <- function (ramclustObj = NULL,
   )
   
   for(i in 1:length(struc.files)) {
-    cat(i, " ")
-    cat(struc.files[i], '\n')
     tmp <- readLines(struc.files[i])
     tmp.names <- grep("NAME: ", tmp)
     if(length(tmp.names) > 0) {
@@ -209,9 +206,6 @@ annotate.msfinder2 <- function (ramclustObj = NULL,
   ## calculate a total score for each annotation hypothesis
   struc.results$total.score <- round(2*struc.results$structure.score * struc.results$formula.score * struc.results$fm.score, digits = 2)
   struc.results$assigned <- rep(FALSE, nrow(struc.results))
-  
-  cat(" -- finished importing structure results", '\n')
-  # cat(" -- ", length(struc.files), "spec files", '\n')
   
   ## read in spectral match results
   if(length(spec.files) > 0) {
@@ -324,7 +318,7 @@ annotate.msfinder2 <- function (ramclustObj = NULL,
     struc.results$total.score <- struc.results$total.score * priority.factor.v
   }
   
-  cat(" -- rescoring", '\n')
+  cat(" -- assigning annotations", '\n')
 
   ramclustObj$M <- rep(NA, length(ramclustObj$cmpd))
   ramclustObj$formula <- rep(NA, length(ramclustObj$cmpd))
@@ -382,7 +376,7 @@ annotate.msfinder2 <- function (ramclustObj = NULL,
   ramclustObj$annotations.full <- struc.results
   ramclustObj$annotations.selected <- struc.results[which(struc.results$assigned),]
   
-
+  cat(" -- assigning annotations complete", '\n')
   
   ramclustObj$history$msfinder <- paste(
     "MSFinder (Tsugawa 2016) was used for spectral matching,",
