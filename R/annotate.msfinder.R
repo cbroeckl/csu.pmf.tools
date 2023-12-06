@@ -20,7 +20,7 @@
 #' @author Corey Broeckling
 #' @export
 
-annotate.msfinder <- function (ramclustObj = NULL, 
+annotate.msfinder2 <- function (ramclustObj = NULL, 
                                mat.dir = NULL,
                                priority.db = NULL,
                                priority.inchikey = NULL,
