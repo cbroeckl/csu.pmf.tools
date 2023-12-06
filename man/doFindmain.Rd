@@ -16,7 +16,8 @@ doFindmain(
   plot.findmain = TRUE,
   writeMat = TRUE,
   writeMS = FALSE,
-  writeMGF = TRUE
+  writeMGF = FALSE,
+  writeMSP = FALSE
 )
 }
 \arguments{

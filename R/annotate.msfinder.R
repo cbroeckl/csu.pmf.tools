@@ -1,4 +1,4 @@
-#' annotate.msfinder
+#' annotate.msfinder2
 #'
 #' After running MSFinder on .mat or .msp files, import the formulas that were predicted and their scores 
 #' @param ramclustObj R object - the ramclustR object which was used to write the .mat or .msp files
