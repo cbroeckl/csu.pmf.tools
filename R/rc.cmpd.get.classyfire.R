@@ -270,7 +270,29 @@ rc.cmpd.get.classyfire <- function (ramclustObj = NULL, inchikey = NULL, get.all
 
 ######################################################################
 ## get classyfire heirarchy for a given vector of classyfire chemonids
-
+#' get.classyfire.local
+#'
+#' use classyfire web API to look up full ClassyFire hirarchy for each inchikey
+#' @details The get chem ontology heirarchy from chemontid. references local .obo file for faster lookup 
+#' 
+#' @param ramclustObj ramclustR object to ClassyFy.  Must supply one of either ramclustObj or inchikey (see below)
+#' @param chemontid vector of chem ontology IDs.  
+#' @param chemont.obo.location location of the chemontology OBO file. 
+#' @return returns a ramclustR object.  new dataframe in $classyfire slot with rows equal to number of compounds.  
+#' @importFrom jsonlite fromJSON
+#' @importFrom httr http_error
+#' @concept ramclustR
+#' @concept RAMClustR
+#' @concept metabolomics
+#' @concept mass spectrometry
+#' @concept clustering
+#' @concept feature
+#' @concept MSFinder
+#' @concept xcms
+#' @concept classyFire
+#' @author Corey Broeckling
+#' @references Djoumbou Feunang Y, Eisner R, Knox C, Chepelev L, Hastings J, Owen G, Fahy E, Steinbeck C, Subramanian S, Bolton E, Greiner R, and Wishart DS. ClassyFire: Automated Chemical Classification With A Comprehensive, Computable Taxonomy. Journal of Cheminformatics, 2016, 8:61. DOI: 10.1186/s13321-016-0174-y
+#' @export 
 get.classyfire.local <- function(
     ramclustObj = NULL,
     chemontid = NULL,
@@ -349,7 +371,29 @@ get.classyfire.local <- function(
 
 
 
-
+######################################################################
+## export classyfire sunburst plot as html
+#' classyfire.sunburst.plot
+#'
+#' interactive sunburst plot for exploring the classyfire heirarchy.
+#' @details interactive sunburst plot for exploring the classyfire heirarchy.
+#' 
+#' @param ramclustObj ramclustR object with classyfire data
+#' @param subset.cmpds optionally, vector of integers of which compounds to include.  
+#' @param out.file.name output file name, optionally.  
+#' @return nothing - exported files  
+#' @concept ramclustR
+#' @concept RAMClustR
+#' @concept metabolomics
+#' @concept mass spectrometry
+#' @concept clustering
+#' @concept feature
+#' @concept MSFinder
+#' @concept xcms
+#' @concept classyFire
+#' @author Corey Broeckling
+#' @references Djoumbou Feunang Y, Eisner R, Knox C, Chepelev L, Hastings J, Owen G, Fahy E, Steinbeck C, Subramanian S, Bolton E, Greiner R, and Wishart DS. ClassyFire: Automated Chemical Classification With A Comprehensive, Computable Taxonomy. Journal of Cheminformatics, 2016, 8:61. DOI: 10.1186/s13321-016-0174-y
+#' @export 
 classyfire.sunburst.plot <-  function(
     ramclustObj = RC, 
     subset.cmpds = rep(TRUE, length(ramclustObj$ann)),
