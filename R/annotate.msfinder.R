@@ -52,8 +52,10 @@ annotate.msfinder <- function (ramclustObj = NULL,
     rm(r)
   }
   if (is.null(mat.dir)) {
-    mat.dir = paste0(getwd(), "/spectra/mat")
+    mat.dir = paste0(getwd(), "/spectra/mat/")
   }
+  
+  cat("mat.dir:", mat.dir, '\n')
   
   if(is.null(ramclustObj$history)) {
     ramclustObj$history <- ""
@@ -71,6 +73,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
   ## find all structure output files: 
   struc.files <- list.files(mat.dir, pattern = '.sfd', recursive = TRUE, full.names = TRUE)
   
+  
   ## separate out spectal search results
   is.spec.db <- grep("Spectral", struc.files)
   spec.files <- struc.files[is.spec.db]
@@ -78,12 +81,17 @@ annotate.msfinder <- function (ramclustObj = NULL,
     struc.files <- struc.files[-is.spec.db]
   }
   
-  
+  cat(
+    " -- formula files:", length(form.files), '\n',
+    " -- structure files:", length(struc.files), '\n',
+    " -- spectrum files:", length(spec.files), '\n',
+  )
   ###############################
   ## read in parameters file
   if(length(msf.form.param.file)>0) {
     msf.params <- readLines(msf.form.param.file)
   } else {
+    cat(" -- no batch param file found", '\n')
     msf.params <- 'no batch param file found'
   }
   
