@@ -84,7 +84,7 @@ annotate.msfinder <- function (ramclustObj = NULL,
   cat(
     " -- formula files:", length(form.files), '\n',
     " -- structure files:", length(struc.files), '\n',
-    " -- spectrum files:", length(spec.files), '\n',
+    " -- spectrum files:", length(spec.files), '\n'
   )
   ###############################
   ## read in parameters file

@@ -170,7 +170,7 @@ doFindmain <- function (
     #   sum.score <- rc.out
     # }
     sum.score <- sum.score[order(sum.score$total_score, decreasing = TRUE),]
-    sum.score <- sum.score[which(sum.score$total_score >= (max(sum.score$total_score * 0.90))),]
+    sum.score <- sum.score[which(sum.score$total_score >= (max(sum.score$total_score * 0.60))),]
     redund <- which(sum.score$total_score == max(sum.score$total_score))
     if(length(redund) > 1) {
       if(max(sum.score$adducts_explained[redund]) >1) {
