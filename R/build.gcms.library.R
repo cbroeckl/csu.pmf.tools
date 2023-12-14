@@ -19,10 +19,13 @@ build.gcms.library <- function(
     ## find all xlsx files
     spec <- list.files(subdirs[i], recursive = FALSE, pattern = ".xlsx")
     ## remove any files which are not spectra
-    spec <- spec[-grep("~", spec)]
-    spec <- spec[-grep(ri.file.name, spec)]
-    spec <- spec[-grep('template', spec)]
-    spec <- spec[-grep("method", spec)]
+    rm <- grep("~", spec, fixed = TRUE)
+    rm <- c(rm, grep(ri.file.name, spec))
+    rm <- c(rm, grep('template', spec))
+    rm <- c(rm, grep("method", spec))
+    
+    spec <- spec[-unique(rm)]
+
     
     ## calculate RT/RI relationship
     alk <- suppressMessages(readxl::read_xlsx(paste0(subdirs, "/", ri.file.name)))
