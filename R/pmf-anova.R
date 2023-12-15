@@ -86,6 +86,7 @@ pmfanova<-function(ramclustObj=RC,
     cmpdlabel = label.by
   )
   
+  head(dimnames(d[[2]]))
   if(filter){
     if(!is.null(ramclustObj$cmpd.use)) {
       if(length(ramclustObj$cmpd.use == ncol(d[[2]]))) {
@@ -200,7 +201,7 @@ pmfanova<-function(ramclustObj=RC,
   }
   
   dat<-d[[3]]
-  cmpd <- colnames(d[[2]])
+  cmpd <- dimnames(d[[2]])[[2]]
   
   if(grepl("1|", anova.call, fixed = TRUE)) {use<-2} else {use<-1}
   
