@@ -86,7 +86,8 @@ pmfanova<-function(ramclustObj=RC,
     cmpdlabel = label.by
   )
   
-  head(dimnames(d[[2]]))
+  cat(head(dimnames(d[[2]][[2]])))
+  
   if(filter){
     if(!is.null(ramclustObj$cmpd.use)) {
       if(length(ramclustObj$cmpd.use == ncol(d[[2]]))) {
