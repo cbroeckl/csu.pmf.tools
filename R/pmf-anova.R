@@ -80,8 +80,8 @@ pmfanova<-function(ramclustObj=RC,
   
   
   d <- RAMClustR::getData(
-    ramclustObj = ramclustObj, 
-    which.data = which.data, 
+    ramclustObj = ramclustObj,
+    which.data = which.data,
     filter = filter,
     cmpdlabel = label.by
   )
