@@ -45,7 +45,7 @@ rc.cmpd.get.pubchem <- function(
     all.props = FALSE,
     get.synonyms = FALSE,
     get.pubchem.name = FALSE,  
-    get.cid.from.name = FALSE,
+    get.cid.from.name = TRUE,
     find.short.lipid.name = FALSE,
     find.short.synonym = FALSE,
     max.name.length = 30,
@@ -70,7 +70,7 @@ rc.cmpd.get.pubchem <- function(
   dynamic.throttle <- function(pause = 1) {
     hder <- curlGetHeaders("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/58-08-2/property/inchikey/JSON")
     res <- hder[grep("X-Throttling-Control", hder)]
-    if(grepl("Green ", res)) {pause = pause-0.1}
+    if(grepl("Green ", res)) {pause = pause-0.0005}
     if(grepl("Yellow ", res)) {pause = pause+0.5}
     pause <- round(max(pause, 0.2), digits = 1)
     return(pause)
@@ -187,7 +187,7 @@ rc.cmpd.get.pubchem <- function(
   cmpd.smiles[which(nchar(cmpd.smiles) < 1)] <- NA
   
   
-  greek <- read.csv(paste(find.package("RAMClustR"), "/params/greek.csv", sep=""), header=TRUE, encoding = "UTF-8", stringsAsFactors = FALSE)
+  greek <- read.csv(paste(find.package("csu.pmf.tools"), "/params/greek.csv", sep=""), header=TRUE, encoding = "UTF-8", stringsAsFactors = FALSE)
   
   
   
@@ -263,7 +263,7 @@ rc.cmpd.get.pubchem <- function(
                           unlist(out$PropertyTable$Properties[[x]])
                         })
           tmp <- data.frame(t(data.frame(tmp, stringsAsFactors = FALSE)), stringsAsFactors = FALSE)
-          tmp <- tmp[order(tmp[,"CID"], decreasing = TRUE),]
+          tmp <- tmp[order(tmp[,"CID"], decreasing = TRUE),, drop = FALSE]
           out <- as.integer(tmp$CID )
           names(out) <- tmp$InChIKey
           out <- sort(out)
@@ -324,6 +324,7 @@ rc.cmpd.get.pubchem <- function(
   if(get.cid.from.name) {
     do.ind <- which(is.na(cmpd.cid) & !is.na(cmpd.names))
     do <- cmpd.names[do.ind]
+    cat("length do:", length(do), '\n')
     # cat(do)
     if(length(do) > 0) {
       cat("getting cid from names", '\n')
@@ -359,7 +360,7 @@ rc.cmpd.get.pubchem <- function(
                           unlist(out$PropertyTable$Properties[[x]])
                         })
           tmp <- data.frame(t(data.frame(tmp, stringsAsFactors = FALSE)), stringsAsFactors = FALSE)
-          tmp <- tmp[order(tmp[,"CID"], decreasing = TRUE),]
+          tmp <- tmp[order(tmp[,"CID"], decreasing = TRUE),, drop = FALSE]
           # cmpd.cid[do.ind[i]] <- tmp[1, "CID"]
           return(c(do[i], tmp[1, "CID"]))
         } else {return(c(NA, NA))}
@@ -511,6 +512,8 @@ rc.cmpd.get.pubchem <- function(
   
   d <- data.frame(d, "pubchem.name" = pubchem.name, stringsAsFactors = FALSE)
   pubchem$pubchem <- d
+  
+  d
   
   ## Get properties
   if(get.properties) {
