@@ -236,7 +236,7 @@ rc.cmpd.get.pubchem <- function(
       closePubchemConnections()
       keep <- which(!do.l[[i]]=="NA")
       if(length(keep)>0) {
-        Sys.sleep(rnorm(1, 2, 1))
+        Sys.sleep(0.5)
         
         html <- paste0("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/inchikey/",
                        paste0(do.l[[i]][keep], collapse = ","),
@@ -331,7 +331,7 @@ rc.cmpd.get.pubchem <- function(
       tmp.res <- foreach(i = 1:length(do)) %dopar% {
         # for(i in 1:length(do)) {
         closePubchemConnections()
-        Sys.sleep(rnorm(1, 0.5, 0.1))
+        Sys.sleep(0.5)
         # cat(do[i])
         html <- paste0("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/",
                        do[i],
@@ -389,7 +389,7 @@ rc.cmpd.get.pubchem <- function(
         cat("please enter CID number or hit 'enter' to skip to next (no CID found)", '\n',
             "If you wish to quit manual entry, enter 'q' to return current Output only.", '\n',
             cmpd.names[i], '\n')
-        Sys.sleep(0.2)
+        Sys.sleep(0.5)
         utils::browseURL(paste0("https://pubchem.ncbi.nlm.nih.gov/#query=", cmpd.names[i]))
         readback <- readline()
         if(readback == "q") {break}
@@ -416,7 +416,7 @@ rc.cmpd.get.pubchem <- function(
     # do.ind <- which(!is.na(cmpd.cid) & !is.na(cmpd.names))
     do.ind <- which(!is.na(cmpd.cid))
     for(i in do.ind) {
-      Sys.sleep(0.2)
+      Sys.sleep(0.5)
       html <- paste0("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/",
                      cmpd.cid[i],
                      "/cids/TXT?cids_type=parent")
@@ -582,7 +582,7 @@ rc.cmpd.get.pubchem <- function(
     tmp.res <- foreach::foreach(i = 1:length(cid.l)) %dopar% {
       # for(i in 1:length(cid.l)) {
       closePubchemConnections()
-      Sys.sleep(0.2)
+      Sys.sleep(0.5)
       keep <- which(!cid.l[[i]]=="NA")
       # if(length(keep) == 0) next
       html <- paste0("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/",
@@ -633,7 +633,7 @@ rc.cmpd.get.pubchem <- function(
     vendor.urls <- rep(NA, nrow(d))
     pubchem.vendors.url <-rep(NA, nrow(d))
     for(i in do) {
-      Sys.sleep(0.2)
+      Sys.sleep(0.5)
       out <- tryCatch(
         {
           jsonlite::read_json(paste0("https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/categories/compound/",
