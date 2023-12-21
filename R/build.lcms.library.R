@@ -22,7 +22,8 @@ build.lcms.library <- function(
     ri.file.name = NULL,
     column = "T3",
     lib.name = "cannabinoids-t3",
-    trim.to.precursor = TRUE) {
+    trim.to.precursor = TRUE,
+    intensity.filter = NULL) {
   
   if(!dir.exists(lib.directory)) {
     stop("directory ", lib.directory, 'does not exist.', '\n')
@@ -45,6 +46,7 @@ build.lcms.library <- function(
     if(!is.null(ri.file.name)) rm <- c(rm, grep(ri.file.name, spec))
     rm <- c(rm, grep('template', spec))
     rm <- c(rm, grep("method", spec))
+    rm <- c(rm, grep("__", spec))
     
     spec <- spec[-unique(rm)]
     
@@ -73,8 +75,6 @@ build.lcms.library <- function(
       ms1 <- suppressMessages(data.frame(readxl::read_xlsx(paste0(subdirs[i], "/", spec[j]), col_names = FALSE, sheet = 2, skip = 1)))
       ms2 <- suppressMessages(data.frame(readxl::read_xlsx(paste0(subdirs[i], "/", spec[j]), col_names = FALSE, sheet = 3, skip = 2)))
       prec <- suppressMessages(data.frame(readxl::read_xlsx(paste0(subdirs[i], "/", spec[j]), col_names = FALSE, sheet = 3, skip = 0)))[1,2]
-      
-      
       
       ## check to make sure this looks like a spectrum file
       if(!grepl("Name", d[1,1])) {
@@ -106,18 +106,30 @@ build.lcms.library <- function(
         }
       concentration <- d[6,2]
       concentration.units <- "ug/mL"
-      spec.range <- (1+(grep("m/z", d[,1], fixed = TRUE)):nrow(d))
-      mz <- round(as.numeric(msms[, 1]), digits = 4)
-      int <- round(as.numeric(d[msms, 2]), digits = 0)
+      # spec.range <- (1+(grep("m/z", d[,1], fixed = TRUE)):nrow(d))
+      max.mz <- if(is.na(prec)) {
+        as.numeric(metabolite$properties$MonoisotopicMass) + 4
+      } else {
+        prec + 4
+      }
+      use.ms2 <- which(ms2[,1] <= max.mz)
+      mz <- round(as.numeric(ms2[use.ms2, 1]), digits = 4)
+      int <- round(as.numeric(ms2[use.ms2, 2]), digits = 0)
+      
+      if(is.numeric(intensity.filter)) {
+        use <- which(int >= (max(int, na.rm = TRUE)*intensity.filter))
+        mz <- mz[use]
+        int <- int[use]
+      }
+      
       any.na <- which(is.na(mz) | is.na(int))
       if(length(any.na) > 0) {
         mz <- mz[-any.na]
         int <- int[-any.na]
       }
-      too.low <- which(int < 0.01*max(int))
-      mz <- mz[-too.low]
-      int <- int[-too.low]
       
+      pc <- sapply(1:length(metabolite$properties), FUN = function(k) {paste0(names(metabolite$properties)[k], ": ", metabolite$properties[1,k])})
+
       out <- c(
         out, 
         paste("NAME:", name), 
@@ -126,7 +138,8 @@ build.lcms.library <- function(
         if(!is.na(deriv.cid)) {paste("Derivative.CID:", deriv.cid)},
         paste("RI:", ri),
         paste("RT:", rt),
-        paste("Concentration:", concentration, concentration.units), 
+        pc,
+        if(!is.na(concentration)) {paste("Concentration:", concentration, concentration.units)}, 
         paste("Num peaks:", length(mz)) 
       )
       for(k in 1:length(mz)) {
@@ -149,9 +162,4 @@ build.lcms.library <- function(
   
 }
 
-# build.gcms.library(
-#   lib.directory = "R:/RSTOR-PMF/Projects/in-house libraries/GC-EI-volatiles/DBWAX-volatile-mtd01-20231106",
-#   ri.file.name = "alkanes.xlsx",
-#   column = "DB-WAX-MS",
-#   lib.name = "terpenes-spme"
-# )
+
