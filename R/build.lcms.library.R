@@ -18,7 +18,7 @@
 #' @export
 #' 
 build.lcms.library <- function(
-    lib.directory = 'R:/RSTOR-PMF/Projects/in-house libraries/LC-qTOF/CBD Terpenes/T3_20min',
+    lib.directory = NULL,
     ri.file.name = NULL,
     column = "T3",
     lib.name = "cannabinoids-t3",
@@ -163,10 +163,10 @@ build.lcms.library <- function(
 }
 
 
-build.lcms.library(
-    lib.directory = 'R:/RSTOR-PMF/Projects/in-house libraries/LC-qTOF/CBD Terpenes/T3_20min',
-    ri.file.name = NULL,
-    column = "T3",
-    lib.name = "cannabinoids-t3",
-    trim.to.precursor = TRUE,
-    intensity.filter = NULL) 
+# build.lcms.library(
+#     lib.directory = 'R:/RSTOR-PMF/Projects/in-house libraries/LC-qTOF/CBD Terpenes/T3_20min',
+#     ri.file.name = NULL,
+#     column = "T3",
+#     lib.name = "cannabinoids-t3",
+#     trim.to.precursor = TRUE,
+#     intensity.filter = NULL) 
