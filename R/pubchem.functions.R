@@ -142,20 +142,19 @@ filter.pathway.conserved <- function(
       cat(" - no conserved pathways retained.", '\n')
     }
   }
+  
+  cat(" - retained", 
+      nrow(out), 
+      "pathways from", 
+      length(unique(out$source)), 
+      if(length(unique(out$source)) == 1) {"source:"} else {"sources:"}, 
+      paste(unique(out$source)), 
+      '\n'
+  )
+  
   return(out)
 }
 
-cat(" - retained", 
-    nrow(out), 
-    "pathways from", 
-    length(unique(out$source)), 
-    if(length(unique(out$source)) == 1) {"source:"} else {"sources:"}, 
-    paste(unique(out$source)), 
-    '\n'
-)
-
-return(out)
-}
 
 
 # cid.pathway.lookup <- function(
