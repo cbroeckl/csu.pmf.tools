@@ -20,7 +20,7 @@ rc.cmpd.get.pubchem(
   all.props = FALSE,
   get.synonyms = FALSE,
   get.pubchem.name = FALSE,
-  get.cid.from.name = FALSE,
+  get.cid.from.name = TRUE,
   find.short.lipid.name = FALSE,
   find.short.synonym = FALSE,
   max.name.length = 30,

@@ -65,7 +65,7 @@ rc.cmpd.get.pubchem <- function(
   ## max of 5 threads
   if(threads > 5) threads <- 5
   
-  ## need to implement this, in particular in any foreach loop.  
+  ## need to implement this, in particular in any for loop where we are looking up one compound value at a time.  
   ## dynamic.throttle function returns a new value for Sys.sleep
   dynamic.throttle <- function(pause = 1) {
     hder <- curlGetHeaders("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/58-08-2/property/inchikey/JSON")
