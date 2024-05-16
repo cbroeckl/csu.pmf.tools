@@ -14,6 +14,7 @@
 #' @param num.factors which factors should be treated as numeric? must be subset of 'which.factors'. i.e. c("time")
 #' @param label.by  how should metabolites columns be labelled? one of 'ann' or 'cmpd', typically. 
 #' @param npc "auto" by default (recommended).  This will autoselect number of PCs to use.  Can also be set to any integer value to force more PCs.
+#' @param pca.name character: directory name for output.  
 
 #' @return returns a ramclustR object.  new R object in $pca slot. Optionally, new R object in $AuerGervini slot if npc = "auto".
 #' @concept RAMClustR
@@ -25,6 +26,7 @@
 pmfpca<-function(ramclustObj=RC,
                  which.data="SpecAbund",
                  scale="pareto",
+                 pca.name = NULL,
                  subset = c(),
                  subset.cmpd = c(),
                  which.factors = NULL,
@@ -43,12 +45,23 @@ pmfpca<-function(ramclustObj=RC,
     stop("must supply ramclustR object as input")
   }
   
+  out.dir <- paste0("stats/pca/")
+  
   if(!dir.exists("stats")) {
     dir.create('stats')
   }
   if(!dir.exists("stats/pca")) {
     dir.create('stats/pca')
   }
+  
+  if(!is.null(pca.name)) {
+    out.dir <- paste0(out.dir, pca.name, "/")
+    dir.create(out.dir)
+  }
+  
+
+
+  
   
   if(is.null(subset)) {
     subset <- c("")
@@ -121,10 +134,10 @@ pmfpca<-function(ramclustObj=RC,
   
   ## scale data first. 
   
-  if(scale == "pareto") {
+  if(tolower(scale) == "pareto") {
     d[[2]] <- scale(d[[2]], center = T, scale = sqrt(apply(d[[2]], 2, FUN = "sd")))
   }
-  if(scale == "uv") {
+  if(tolower(scale) == "uv") {
     d[[2]] <- scale(d[[2]], center = T, scale = T)
   }
   
@@ -212,7 +225,7 @@ pmfpca<-function(ramclustObj=RC,
     " These are not meant to be rigorous statistical tests but to help guide interpretation of the data."
   )
   
-  pdf('stats/pca/plots.pdf', width = 10, height = 6)
+  pdf(paste0(out.dir, 'plots.pdf'), width = 10, height = 6)
   if(any(ls() == ("ag.obj"))) {
     if(ag.summary.plot) {
       par(mfrow = c(1,2))
@@ -315,22 +328,26 @@ pmfpca<-function(ramclustObj=RC,
   dev.off()
   
   loadings.out <- (pc$rotation)[,1:npc, drop = FALSE]
-  write.csv(loadings.out, file = "stats/pca/loadings.values.csv")
+  write.csv(loadings.out, file = paste0(out.dir, "loadings.values.csv"))
   for(i in 1:ncol(loadings.out)) {
     tmp <-p.adjust(2*pnorm(abs(pc$rotation[,1]), lower.tail=FALSE), method="BH")
     loadings.out[which(tmp > 0.05),i] <- "NA"
   }
   
-  ramclustObj$history$loadings <- paste(
+  ramclustObj$history$PCA.loadings <- paste(
     "Outlier tests are performed on PC loadings to serve as a guide in interpreting which compounds contribute most to the observed separation.", 
     "This is performed using the R pnorm function. Returned p-values are false discovery rate corrected.", 
     "These p-values are not used to conclude that a compound is significantly changing, but rather to indicate that a compound disproportionately contributes to the multivariate sample separation observed for that PC."
   )
   
-  write.csv(pc$rotation, file = "stats/pca/loadings.values.allPCs.csv")
-  write.csv(loadings.out, file = "stats/pca/loadings.outliers.csv")
-  write.csv(pc$x[,1:npc], file = "stats/pca/scores.csv")
-  write.csv(pc$x, file = "stats/pca/scores_allPCs.csv")
+  write.csv(pc$rotation, file = paste0(out.dir, "loadings.values.allPCs.csv"))
+  write.csv(loadings.out, file = paste0(out.dir, "loadings.outliers.csv"))
+  write.csv(pc$x[,1:npc], file = paste0(out.dir, "scores.csv"))
+  write.csv(pc$x, file = paste0(out.dir, "scores_allPCs.csv"))
+  
+  sink(paste0(out.dir, "methods.txt"))
+  cat(paste(ramclustObj$history[grep("PCA", names(ramclustObj$history))], collapse = " "))
+  sink()
   
   ramclustObj$pca <- pc
   if(any(ls() == "ag.obj")) ramclustObj$AuerGervini <- ag.obj
