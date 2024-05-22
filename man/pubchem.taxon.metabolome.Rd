@@ -2,7 +2,7 @@
 % Please edit documentation in R/pubchem.functions.R
 \name{pubchem.taxon.metabolome}
 \alias{pubchem.taxon.metabolome}
-\title{get.taxon.cids}
+\title{pubchem.taxon.metabolome}
 \usage{
 pubchem.taxon.metabolome(
   taxid = NULL,
