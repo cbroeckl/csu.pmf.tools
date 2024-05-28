@@ -113,15 +113,23 @@ doFindmain <- function (
   ramclustObj$ms2.precursor.iontype <- rep(NA, length(ramclustObj$ann))
   
   for (cl in cmpd) {
+    if(is.null(ramclustObj$fm)) {
+      mzs <- ramclustObj$fmz
+    } else {
+      mzs <- ramclustObj$fm
+    }
     s <- data.frame(
-      mz = ramclustObj$fm[which(ramclustObj$featclus == cl)], 
+      mz = mzs[which(ramclustObj$featclus == cl)], 
       int = ramclustObj$msint[which(ramclustObj$featclus == cl)])
     
-    
-    s2 <- data.frame(
-      mz = ramclustObj$fm[which(ramclustObj$featclus == cl)], 
-      int = ramclustObj$msmsint[which(ramclustObj$featclus == cl)])
-    
+    if(is.null(ramclustObj$msmsint)) {
+      s2 <- s
+    } else {
+      s2 <- data.frame(
+        mz = ramclustObj$fm[which(ramclustObj$featclus == cl)], 
+        int = ramclustObj$msmsint[which(ramclustObj$featclus == cl)])
+    }
+
     s <- s[order(s$mz),]
     s2 <- s2[order(s2$mz),]
     
