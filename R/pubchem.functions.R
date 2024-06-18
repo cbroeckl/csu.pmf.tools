@@ -185,7 +185,7 @@ get.cids.from.pathways <- function(
   return(out)
 }
 
-#' get.taxon.cids
+#' pubchem.taxon.metabolome
 #'
 #' use pubchem rest to retreive pubchem CIDS known to be found in a given species.  NCBI taxid should be used as input.  i.e. Homo sapiens subsp. 'Denisova' is taxid 741158 
 #' @details this function enables return of a list of pubchem CIDs which can be used for prioritizing annotations.  If a genus level taxid is selected, setting the sub.taxa.n option > 0 will return metabolites associated with that taxid and all (assuming n is large enough) subtaxa.  i.e. seting taxid to 9605 (genus = 'Homo') will return metabolites associated with Homo sapiens, Homo heidelbergensis, Homo sapiens subsp. 'Denisova', etc. 
@@ -366,16 +366,26 @@ get.pubchem.plant.lipids <- function(
     cat(" - found", length(sqdgs), "SQDGs", '\n')
     cids <- c(cids, sqdgs)
   }
-  
+
   cids <- sort(unique(cids))
   cat(" - found", length(cids), "plant lipids", '\n')
   return(cids)
 }
 
+
+
 get.pubchem.lipidmaps.cids <- function(
     class = NULL,
-    subclass = NULL
+    subclass = NULL,
+    organism.class = NULL
 ) {
+  
+  # if(!is.null(organism.class)) {
+  #   if(organism.class == 'plants') {
+  #     https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/taxonomy/25240460/JSON/
+  #   }
+  # }
+  
   
   # retreive from lipid maps directly
   # out <- read.delim("https://www.lipidmaps.org/rest/compound/lm_id/LM/all/download", skip = 1)
@@ -384,16 +394,25 @@ get.pubchem.lipidmaps.cids <- function(
   #   
   # }
   
+  out <- read.delim('https://www.lipidmaps.org/rest/compound/lm_id/LM/all/download', skip = 1)
   
   ## can get from pubchem
-  out <- read.csv(
-    'https://pubchem.ncbi.nlm.nih.gov/sdq/sdqagent.cgi?infmt=json&outfmt=csv&query={%22download%22:%22*%22,%22collection%22:%22substance%22,%22order%22:[%22relevancescore,desc%22],%22start%22:1,%22limit%22:10000000,%22downloadfilename%22:%22PubChem_substance_cache_yY5uPf9Hmvut0ZjIGrDR42be1L6KMirYUP0xlEvsI5VL9R8%22,%22where%22:{%22ands%22:[{%22input%22:{%22type%22:%22netcachekey%22,%22idtype%22:%22sid%22,%22key%22:%22yY5uPf9Hmvut0ZjIGrDR42be1L6KMirYUP0xlEvsI5VL9R8%22}}]}}'
-  )
+  
+  # out <- readLines('https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/annotations/heading/JSON/?source=LIPID%20MAPS&heading_type=Compound&heading=Lipid%20Maps%20ID%20(LM_ID)&page=1&response_type=save&response_basename=PubChemAnnotations_LIPID%20MAPS_heading%3DLipid%20Maps%20ID%20(LM_ID)')
+  # out <- jsonlite::parse_json(out)
+  
+  
+  # out <- read.csv(
+  #   'https://pubchem.ncbi.nlm.nih.gov/sdq/sdqagent.cgi?infmt=json&outfmt=csv&query={%22download%22:%22*%22,%22collection%22:%22substance%22,%22order%22:[%22relevancescore,desc%22],%22start%22:1,%22limit%22:10000000,%22downloadfilename%22:%22PubChem_substance_cache_yY5uPf9Hmvut0ZjIGrDR42be1L6KMirYUP0xlEvsI5VL9R8%22,%22where%22:{%22ands%22:[{%22input%22:{%22type%22:%22netcachekey%22,%22idtype%22:%22sid%22,%22key%22:%22yY5uPf9Hmvut0ZjIGrDR42be1L6KMirYUP0xlEvsI5VL9R8%22}}]}}'
+  # )
+  # out <- read.csv(
+  #   'https://pubchem.ncbi.nlm.nih.gov/sdq/sdqagent.cgi?infmt=json&outfmt=csv&query={%22download%22:%22*%22,%22collection%22:%22substance%22,%22order%22:[%22relevancescore,desc%22],%22start%22:1,%22limit%22:10000000,%22downloadfilename%22:%22PubChem_substance_cache_nNs_rQHqZFZTfGZl5B0vTrf3NZdxHDOUSbEo2FKgOtlSuQY%22,%22where%22:{%22ands%22:[{%22input%22:{%22type%22:%22netcachekey%22,%22idtype%22:%22sid%22,%22key%22:%22nNs_rQHqZFZTfGZl5B0vTrf3NZdxHDOUSbEo2FKgOtlSuQY%22}}]}}'
+  # )
   
   if(!is.null(class)) {
     keep <- vector(length = 0, mode = 'numeric')
     for(i in 1:length(class)) {
-      keep <- c(keep, grep(class[i], out$sidextid))
+      keep <- unique(c(keep, grep(class[i], out$main_class)))
     }
     out <- out[keep,]
   }
@@ -402,12 +421,12 @@ get.pubchem.lipidmaps.cids <- function(
   if(!is.null(subclass)) {
     keep <- vector(length = 0, mode = 'numeric')
     for(i in 1:length(subclass)) {
-      keep <- c(keep, grep(subclass[i], out$sidextid))
+      keep <- unique(c(keep, grep(subclass[i], out$sub_class)))
     }
     out <- out[keep,]
   }
   
-  return(out$cid)
+  return(as.numeric(out$pubchem_cid))
 }
 
 # all.sources <- get.pubchem.sources()
