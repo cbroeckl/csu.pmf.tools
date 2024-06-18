@@ -89,7 +89,8 @@ rc.cmpd.get.pubchem <- function(
     invisible()
   }
   
-  if(cmpds.per.call < 1) cmpds.per.call <- 1
+  if(cmpds.per.call < 1) {cmpds.per.call <- 1}
+  if(is.null(cmpd.names)) {get.cid.from.name <- FALSE}
   
   doParallel::registerDoParallel(threads)
   
@@ -321,9 +322,11 @@ rc.cmpd.get.pubchem <- function(
   }
   
   ## get missing CIDs from names next
+  
   if(get.cid.from.name) {
     do.ind <- which(is.na(cmpd.cid) & !is.na(cmpd.names))
     do <- cmpd.names[do.ind]
+    if(length(do) == 0) break
     cat("length do:", length(do), '\n')
     # cat(do)
     if(length(do) > 0) {
