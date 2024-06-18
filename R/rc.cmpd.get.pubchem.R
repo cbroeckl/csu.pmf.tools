@@ -44,7 +44,7 @@ rc.cmpd.get.pubchem <- function(
     get.properties = TRUE,
     all.props = FALSE,
     get.synonyms = FALSE,
-    get.pubchem.name = FALSE,  
+    get.pubchem.name = TRUE,  
     get.cid.from.name = TRUE,
     find.short.lipid.name = FALSE,
     find.short.synonym = FALSE,
@@ -368,15 +368,15 @@ rc.cmpd.get.pubchem <- function(
           return(c(do[i], tmp[1, "CID"]))
         } else {return(c(NA, NA))}
       }
+      for(i in 1:length(tmp.res)) {
+        if(is.na(tmp.res[[i]][1])) next
+        cmpd.cid[which(cmpd.names == tmp.res[[i]][1])] <- tmp.res[[i]][2]
+      }
     }
-    for(i in 1:length(tmp.res)) {
-      if(is.na(tmp.res[[i]][1])) next
-      cmpd.cid[which(cmpd.names == tmp.res[[i]][1])] <- tmp.res[[i]][2]
-    }
-    
-    ##
+
     cid <- cmpd.cid
   }
+  
   
   ### offer opportunity to revise CIDs with manual input, if need be. use name only (inchikey should be unambiguous)
   if(manual.entry){
@@ -523,6 +523,7 @@ rc.cmpd.get.pubchem <- function(
     cat("getting physicochemical properties and structure representations from cid", '\n')
     if(all.props) {
       props <- c(
+        'Title',
         'MolecularFormula',
         'MolecularWeight',
         'CanonicalSMILES',
@@ -566,6 +567,7 @@ rc.cmpd.get.pubchem <- function(
       )
     } else {
       props <- c(
+        'Title',
         'MolecularFormula',
         'MolecularWeight',
         'CanonicalSMILES',
@@ -623,6 +625,7 @@ rc.cmpd.get.pubchem <- function(
     }
     
     dimnames(properties)[[2]][1] <- "cid"
+    pubchem$pubchem$pubchem.name <- properties$Title
     pubchem$properties <- properties
   }
   
