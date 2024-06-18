@@ -164,7 +164,7 @@ pmfanova<-function(ramclustObj=RC,
     "the", which.data, "dataset was used as described below."
   )
   
-  cat("subset:", subset, '\n')
+  # cat("subset:", subset, '\n')
   # cat(dim(d[[2]]), '\n')
   
   if(length(subset) > 1) {
@@ -223,7 +223,7 @@ pmfanova<-function(ramclustObj=RC,
         effects::allEffects(test), silent = TRUE
       )
       if(class(testplot) != 'try-error') {
-        pdf(file=paste0(out.dir, "/effectsplots.pdf"), width=16, height=8)
+        pdf(file=paste0(out.dir, "/effectsplots.pdf"), width=16, height=8, compress = FALSE)
         for(i in 1:length(res)) {
           plot(effects::allEffects(res[[i]]), main=ramclustObj[[label.by]][i], ylab="effect size (signal intensity)")
         }
@@ -252,7 +252,7 @@ pmfanova<-function(ramclustObj=RC,
         effects::allEffects(test), silent = TRUE
       )
       if(class(testplot) != 'try-error') {
-        pdf(file=paste0(out.dir, "/effectsplots.pdf"), width=16, height=8)
+        pdf(file=paste0(out.dir, "/effectsplots.pdf"), width=16, height=8, compress = FALSE)
       } else {
         cat("effects plots failed: setting effectsplots = FALSE", '\n')
         cat(testplot)
@@ -263,6 +263,7 @@ pmfanova<-function(ramclustObj=RC,
     
     res <- list(rep(NA, length(cmpd)))
     for(x in 1:length(cmpd)) {
+    # for(x in 1:10) {
       res.x <- lmerTest::lmer(as.formula(paste(cmpd[x], "~", anova.call)), data = .TeMpVaR)
       if(effectsplots) {
         plot(effects::allEffects(res.x), main=ramclustObj[[label.by]][x], ylab="effect size (signal intensity)")
@@ -310,7 +311,7 @@ pmfanova<-function(ramclustObj=RC,
     sink()
     
     
-    save(res, file = paste0(out.dir, "/models.Rdata"))
+    # save(res, file = paste0(out.dir, "/models.Rdata"))
   }
   
   
@@ -388,7 +389,7 @@ pmfanova<-function(ramclustObj=RC,
     int.rg <- 10^(int.rg^0.5)
     
     if(plots) {
-      pdf(file=paste0(out.dir, "/anova_summary.pdf"), width=10, height=8)
+      pdf(file=paste0(out.dir, "/anova_summary.pdf"), width=10, height=8, compress = FALSE)
       for(i in 2:ncol(pldata)) {
         par(xpd=FALSE)
         if(any(pldata[,i] == 0)) {
@@ -474,6 +475,9 @@ pmfanova<-function(ramclustObj=RC,
     }
     write.csv(out, file = paste0("stats/anova/", anova.name, "/summary.statistics.csv"), row.names = FALSE)
   }
+  sink("methods.txt")
+  cat(paste(ramclustObj$history[grep("anova", names(ramclustObj$history))], collapse = " "))
+  sink()
   
   return(ramclustObj)
 }
