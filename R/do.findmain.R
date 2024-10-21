@@ -86,7 +86,7 @@ doFindmain <- function (
   if (is.null(nls)) {
     if (grepl("p", mode)) {
       nls <- c("[M+H-COCH2]+", "[M+H-C2H3NO]+", "[M+H-H2O]+", 
-               "[M+H-NH3]+", "[M+H-HCOOH]-", "[M+H-C6H12O6]+", "[M+H-C5H10O5]+", 
+               "[M+H-NH3]+", "[M+H-HCOOH]+", "[M+H-C6H12O6]+", "[M+H-C5H10O5]+", 
                "[M+H-C12H22O11]+")
     }
     if (grepl("n", mode)) {
