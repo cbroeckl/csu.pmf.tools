@@ -13,10 +13,10 @@
 #' @param priority.vendors charachter vector.  i.e. c("MyFavoriteCompany", "MySecondFavoriteCompany").  If these vendors are found, the URL returned is from priority vendors. Priority is given by order input by user. 
 #' @param get.properties logical.  if TRUE, physicochemical property data are returned for each compound with a matched CID.
 #' @param get.synonyms = TRUE. logical.  if TRUE, retrieve pubchem synonyms.  returned to $synonyms slot
-#' @param find.short.lipid.name = TRUE. logical.  If TRUE, and get.synonyms = TRUE, looks for lipid short hand names in synonyms list (i.e. PC(36:6)). returned to $short.name slot.  Short names are assigned only if assign.short.names = TRUE.
-#' @param find.short.synonym = TRUE. logical.  If TRUE, and get.synonyms = TRUE, looks for lipid short synonyms, with prioritization for names with fewer numeric characters (i.e. database accession numbers or CAS numbers). returned to $short.name slot.  Short names are assigned only if assign.short.names = TRUE.
+#' @param find.short.lipid.name = TRUE. logical.  If TRUE, and get.synonyms = TRUE, looks for lipid short hand names in synonyms list (i.e. PC(36:6)). returned to $short.name slot.
+#' @param find.short.synonym = TRUE. logical.  If TRUE, and get.synonyms = TRUE, looks for lipid short synonyms, with prioritization for names with fewer numeric characters (i.e. database accession numbers or CAS numbers). returned to $short.name slot. 
+#' @param find.cas = TRUE. logical.  If TRUE, and get.synonyms = TRUE, looks for a string matching cas format.
 #' @param max.name.length = 20.  integer.  If names are longer than this value, short names will be searched for, else, retain original name.
-#' @param assign.short.name = TRUE.  If TRUE, short names from find.short.lipid.name and/or find.short.synonym = TRUE, short names are assigned the be the default annotation name ($ann slot), and original annotations are moved to $long.name slot.
 #' @param all.props logical.  If TRUE, all pubchem properties (https://pubchemdocs.ncbi.nlm.nih.gov/pug-rest$_Toc494865567) are returned.  If false, only a subset (faster).
 #' @param get.bioassays logical. If TRUE, return a table summarizing existing bioassay data for that CID. 
 #' @param get.pathways logical.  If TRUE, return a table of metabolic pathways for that CID.
@@ -38,7 +38,7 @@ rc.cmpd.get.pubchem <- function(
     cmpd.smiles = NULL,
     use.parent.cid = FALSE,
     manual.entry = FALSE,
-    get.vendors = FALSE,
+    get.vendors = TRUE,
     priority.vendors = c("Sigma Aldrich", "Alfa Chemistry", "Acros Organics", "VWR", 
                          "Alfa Aesar", "molport", "Key Organics", "BLD Pharm"),
     get.properties = TRUE,
@@ -48,13 +48,13 @@ rc.cmpd.get.pubchem <- function(
     get.cid.from.name = TRUE,
     find.short.lipid.name = FALSE,
     find.short.synonym = FALSE,
-    max.name.length = 30,
-    assign.short.name = FALSE,
+    find.cas = TRUE,
+    max.name.length = 40,
     get.bioassays = FALSE,
     get.pathways = FALSE,
     write.csv = FALSE,
     cmpds.per.call = 50,
-    threads = 5
+    threads = 2
 ) {
   
   ## function to close failed pubchem queries to prevent 
@@ -223,7 +223,7 @@ rc.cmpd.get.pubchem <- function(
   #####################################################################################
   #####################################################################################
   ##  get a complete list of CIDS before looking up properties
-  ##  inchikey, then by smiles, then by name.  
+  ##  inchikey, then by smiles, then by name, then short inchikey, if inchikey is provided.  
   
   ## get missing CIDs from inchikeys first
   ## if more than one inchikey per compound, lowest value CID is used
@@ -373,9 +373,11 @@ rc.cmpd.get.pubchem <- function(
         cmpd.cid[which(cmpd.names == tmp.res[[i]][1])] <- tmp.res[[i]][2]
       }
     }
-
+    
     cid <- cmpd.cid
   }
+  
+  ## get missing CIDs from short inchikeys next
   
   
   ### offer opportunity to revise CIDs with manual input, if need be. use name only (inchikey should be unambiguous)
@@ -703,10 +705,6 @@ rc.cmpd.get.pubchem <- function(
     pubchem$synonyms <- as.list(rep(NA, length(ramclustObj$cmpd)))
     names(pubchem$synonyms) <- ramclustObj$cmpd
     
-    if(find.short.lipid.name | find.short.synonym) {
-      pubchem$short.name <- rep(NA, nrow(d))
-    }
-    
     for(i in 1:length(cid.l)) {
       keep <- which(!cid.l[[i]]=="NA")
       if(length(keep) == 0) next
@@ -734,78 +732,77 @@ rc.cmpd.get.pubchem <- function(
       
       for(j in 1:length(out$InformationList$Information)) {
         on <- which(cid ==  cid.l[[i]][keep[j]])
-        if(length(on)==0) next
-        if(length(on) > 1) {
-          if(!(any(ls() == "multi.cid"))) {
-            multi.cid <- rep(1, 1)
-            names(multi.cid)[1] <- cid.l[[i]][keep[j]]
-            on <- on[1]
-          } else {
-            if(any(names(multi.cid) == cid.l[[i]][keep[j]])) {
-              which.multi <- which(names(multi.cid) == cid.l[[i]][keep[j]])
-              multi.cid[which.multi] <- multi.cid[which.multi] + 1
-              on <- on[multi.cid[which.multi]]
-            } else {
-              multi.cid <- c(multi.cid, 1)
-              names(multi.cid)[length(multi.cid)] <- cid.l[[i]][keep[j]]
-              on <- on[1]
-            }
+        if(length(on)==0) {next} else {
+          for(k in 1:length(on)) {
+            tmp <- out$InformationList$Information[[j]]
+            if(is.null(tmp$Synonym)) next
+            syns <- unlist(tmp$Synonym)
+            pubchem$synonyms[[on[k]]] <- syns
           }
         }
-        tmp <- out$InformationList$Information[[j]]
-        if(is.null(tmp$Synonym)) next
-        syns <- unlist(tmp$Synonym)
-        pubchem$synonyms[[on]] <- syns
-        
-        if(find.short.lipid.name) {
-          if(length(pubchem$synonyms[[on]]) > 1) {
-            lipid.like <- stringr::str_detect(pubchem$synonyms[[on]], "\\([0-9]{1,2}\\:[0-9]{1,2}\\)")
-            short.name <- (nchar(pubchem$synonyms[[on]]) <= max.name.length)
-            keep <- which(lipid.like & short.name)
-            tars <- pubchem$synonyms[[on]][keep]
-            if(length(tars) > 0) {
-              nc <- nchar(tars)
-              pubchem$short.name[on] <- tars[which.min(nc)]
-            }
-          }
-        }
-        
-        if(find.short.synonym & is.na(pubchem$short.name[on])) {
-          if(length(pubchem$synonyms[[on]]) > 1) {
-            letter.rich <- nchar(pubchem$synonyms[[on]])
-            nchars <- nchar(pubchem$synonyms[[on]])
-            pattern <- "[[:digit:]]+"
-            numbers <- sapply(1:length(pubchem$synonyms[[on]]), FUN = function(k) {
-              nchar(paste(unlist(regmatches(pubchem$synonyms[[on]][k], 
-                                            gregexpr(pattern, pubchem$synonyms[[on]][k]))), 
-                          collapse = "", sep = ""))
-            })
-            letter.rich <- 1- (numbers/nchars)
-            use <- which(nchars < max.name.length & letter.rich > 0.6)
-            if(length(use) == 0) {
-              use <- which(nchars < max.name.length & letter.rich > 0.3)
-            }
-            if(length(use) == 0) {
-              use <- which(nchars < max.name.length)
-            }
-            if(length(use) == 0) {
-              use <- which.min(nchars)
-            }
-            if(length(use) == 0) next
-            use <- use[1]
-            pubchem$short.name[on] <- pubchem$synonyms[[on]][use]
-          }
-        }
-      }
-      
-      
-      
-      if(assign.short.name & !is.null(ramclustObj)) {
-        ramclustObj$original.ann <- ramclustObj$ann
-        ramclustObj$ann[which(!(is.na(pubchem$short.name)))] <- pubchem$short.name[which(!(is.na(pubchem$short.name)))]
       }
     }
+    
+    if(find.short.lipid.name) {
+      lipid.short.name <- rep(NA, nrow(d))
+      for(j in 1:length(lipid.short.name)) {
+        if(length(pubchem$synonyms[[j]]) > 0) {
+          syns <- pubchem$synonyms[[j]]
+          lipid.like <- stringr::str_detect(syns, "\\([0-9]{1,2}\\:[0-9]{1,2}\\)")
+          short.name <- (nchar(syns) <= max.name.length)
+          keep <- which(lipid.like & short.name)
+          if(length(keep) == 0) next
+          lipid.short.name <- syns[keep[1]]
+        }
+      }
+      pubchem$pubchem$lipid.short.name <- lipid.short.name
+    }
+    
+    if(find.short.synonym) {
+      short.synonym <- rep(NA, nrow(d))
+      for(j in 1:length(short.synonym)) {
+        if(length(pubchem$synonyms[[j]]) > 0) {
+          syns <- pubchem$synonyms[[j]]
+          nchars <- nchar(syns)
+          pattern <- "[[:digit:]]+"
+          numbers <- sapply(1:length(syns), FUN = function(k) {
+            nchar(paste(unlist(regmatches(syns[k], 
+                                          gregexpr(pattern, syns[k]))), 
+                        collapse = "", sep = ""))
+          })
+          letter.rich <- 1- (numbers/nchars)
+          use <- which(nchars < max.name.length & letter.rich > 0.6)
+          if(length(use) == 0) {
+            use <- which(nchars < max.name.length & letter.rich > 0.3)
+          }
+          if(length(use) == 0) {
+            use <- which(nchars < max.name.length)
+          }
+          if(length(use) == 0) {
+            use <- which.min(nchars)
+          }
+          if(length(use) == 0) next
+          use <- use[1]
+          short.synonym[j] <- syns[use]
+        }
+      }
+    }
+    
+    if(find.cas) {
+      cas <- rep(NA, nrow(d))
+      for(j in 1:length(cas)) {
+        if(length(pubchem$synonyms[[j]]) > 0) {
+          syns <- pubchem$synonyms[[j]]
+          cas.like <- which(stringr::str_detect(syns, "[:digit:]{2,7}[-][:digit:]{2}[-][:digit:]{1}"))
+          if(length(cas.like) == 0) next
+          cas[j] <- syns[cas.like[1]]
+        }
+      }
+      pubchem$pubchem$cas <- cas
+    }
+    
   }
+  
   
   
   if(get.bioassays) {
