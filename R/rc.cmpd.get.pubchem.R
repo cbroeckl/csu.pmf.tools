@@ -17,7 +17,8 @@
 #' @param find.short.synonym = TRUE. logical.  If TRUE, and get.synonyms = TRUE, looks for lipid short synonyms, with prioritization for names with fewer numeric characters (i.e. database accession numbers or CAS numbers). returned to $short.name slot. 
 #' @param find.cas = TRUE. logical.  If TRUE, and get.synonyms = TRUE, looks for a string matching cas format.
 #' @param max.name.length = 20.  integer.  If names are longer than this value, short names will be searched for, else, retain original name.
-#' @param all.props logical.  If TRUE, all pubchem properties (https://pubchemdocs.ncbi.nlm.nih.gov/pug-rest$_Toc494865567) are returned.  If false, only a subset (faster).
+#' @param all.props logical. If TRUE, all pubchem properties (https://pubchemdocs.ncbi.nlm.nih.gov/pug-rest$_Toc494865567) are returned.  If false, only a subset (faster). which.props, when not NULL, takes precence.
+#' @param which.props charcater vector. default = NULL. can list specifically which properties you wish to have returned.  i.e. c('MonoisotopicMass', 'TPSA', 'HBondDonorCount', 'HBondAcceptorCount').  which.props, when specified, takes precedence over all.props.
 #' @param get.bioassays logical. If TRUE, return a table summarizing existing bioassay data for that CID. 
 #' @param get.pathways logical.  If TRUE, return a table of metabolic pathways for that CID.
 #' @param write.csv logical.  If TRUE, write csv files of all returned pubchem data. 
@@ -43,6 +44,7 @@ rc.cmpd.get.pubchem <- function(
                          "Alfa Aesar", "molport", "Key Organics", "BLD Pharm"),
     get.properties = TRUE,
     all.props = FALSE,
+    which.props = NULL,
     get.synonyms = FALSE,
     get.pubchem.name = TRUE,  
     get.cid.from.name = TRUE,
@@ -583,6 +585,9 @@ rc.cmpd.get.pubchem <- function(
         'HBondDonorCount',
         'HBondAcceptorCount'
       )
+    }
+    if(!is.null(which.props)) {
+      props <- which.props
     }
     
     properties <- d[,0]
