@@ -83,10 +83,10 @@ add.mwtab.metadata <- function(
   return(ramclustObj)
 }
 
-RC <- list()
-RC <- add.mwtab.metadata(mwtab.spreadsheet = 'C:/Users/cbroe/OneDrive/Documents/GitHub/csu.pmf.tools/inst/params/mwTab.input.file.xlsx')
-RC$mwTab$MS_METABOLITE_DATA <- read.csv('C:/Users/cbroe/OneDrive/Documents/GitHub/csu.pmf.tools/inst/params/SpecAbund.csv', row.names = 1)
-RC$mwTab$METABOLITES <- read.csv('C:/Users/cbroe/OneDrive/Documents/GitHub/csu.pmf.tools/inst/params/annotations.csv', row.names = 1)
+# RC <- list()
+# RC <- add.mwtab.metadata(mwtab.spreadsheet = 'C:/Users/cbroe/OneDrive/Documents/GitHub/csu.pmf.tools/inst/params/mwTab.input.file.xlsx')
+# RC$mwTab$MS_METABOLITE_DATA <- read.csv('C:/Users/cbroe/OneDrive/Documents/GitHub/csu.pmf.tools/inst/params/SpecAbund.csv', row.names = 1)
+# RC$mwTab$METABOLITES <- read.csv('C:/Users/cbroe/OneDrive/Documents/GitHub/csu.pmf.tools/inst/params/annotations.csv', row.names = 1)
 
 make.mwtab.file <- function(
     ramclustObj = RC, 
