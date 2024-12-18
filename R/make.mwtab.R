@@ -58,7 +58,7 @@ check.mwtab.spreadsheet <- function(
 
 
 add.mwtab.metadata <- function(
-    ramclustObj = RC,
+    ramclustObj = NULL,
     mwtab.spreadsheet = "mwTab.input.file.xlsx"
 ) {
   
@@ -89,7 +89,7 @@ add.mwtab.metadata <- function(
 # RC$mwTab$METABOLITES <- read.csv('C:/Users/cbroe/OneDrive/Documents/GitHub/csu.pmf.tools/inst/params/annotations.csv', row.names = 1)
 
 make.mwtab.file <- function(
-    ramclustObj = RC, 
+    ramclustObj = NULL, 
     testing = FALSE
 ) {
   
@@ -229,7 +229,7 @@ make.mwtab.file <- function(
   return(out)
 }
 
-sink('mwtab.txt')
-test <- make.mwtab.file(ramclustObj = RC)
-cat(test, sep = "")
-sink()
+# sink('mwtab.txt')
+# test <- make.mwtab.file(ramclustObj = RC)
+# cat(test, sep = "")
+# sink()
