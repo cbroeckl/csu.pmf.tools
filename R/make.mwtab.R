@@ -63,7 +63,7 @@ add.mwtab.metadata <- function(
 ) {
   
   if(!file.exists(mwtab.spreadsheet)) {
-    error("mwtab.spreadsheet file:", mwtab.spreadsheet, "  does not exist", '\n')
+    stop("mwtab.spreadsheet file:", mwtab.spreadsheet, "  does not exist", '\n')
   }
   mwtab.format <- get.mwtab.format()
   mwtab <- list()
