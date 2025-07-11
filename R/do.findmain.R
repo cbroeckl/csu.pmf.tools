@@ -126,10 +126,10 @@ doFindmain <- function (
       s2 <- s
     } else {
       s2 <- data.frame(
-        mz = ramclustObj$fm[which(ramclustObj$featclus == cl)], 
+        mz = mzs[which(ramclustObj$featclus == cl)], 
         int = ramclustObj$msmsint[which(ramclustObj$featclus == cl)])
     }
-
+    
     s <- s[order(s$mz),]
     s2 <- s2[order(s2$mz),]
     
@@ -267,7 +267,7 @@ doFindmain <- function (
         if (!is.null(ramclustObj$msmsint)) {
           feats <- which(ramclustObj$featclus == cl)
           if (length(feats) > 0) {
-            msms <- data.frame(mz = ramclustObj$fm[feats], 
+            msms <- data.frame(mz = mzs[feats], 
                                int = ramclustObj$msmsint[feats])
             msms <- msms[which(msms[, "mz"] <= (prcmz + 
                                                   3)), , drop = FALSE]
@@ -283,11 +283,10 @@ doFindmain <- function (
               }
             }
           }
-        }
-        else {
+        } else {
           do <- which(ramclustObj$featclus == cl)
           if (length(do) > 0) {
-            msms <- data.frame(mz = ramclustObj$fm[do], 
+            msms <- data.frame(mz = mzs[do], 
                                int = ramclustObj$msint[do])
             msms <- msms[which(msms[, "mz"] <= (prcmz + 
                                                   3)), , drop = FALSE]
@@ -306,6 +305,71 @@ doFindmain <- function (
         }
         write(out, file = paste0("spectra/mat/", ramclustObj$cmpd[cl], ".", formatC(i, width = 2, flag = 0),
                                  ".mat"))
+      }
+    }
+  }
+  
+  if (writeMS) {
+    if (!dir.exists("spectra")) {
+      dir.create("spectra")
+    }
+    dir.create("spectra/ms")
+    for (cl in cmpd) {
+      for(i in 1:length(findmain[[cl]]$details)) {
+        ms <- findmain[[cl]]$details[[i]]
+        ms$mz <- round(ms$mz, digits = 4)
+        ms$int <- round(ms$int, digits = 2)
+        prcr <- which(ms[, "adduct"] %in% ads)
+        prcr <- prcr[which.max(ms[prcr, "int"])]
+        prcmz <- round(ms[prcr, "mz"], digits = 4)
+        prctype <- ms[prcr, "adduct"]
+        out <- paste(">compound ", ramclustObj$cmpd[cl], 
+                     "\n", ">parentmass ", prcmz, "\n", ">ionization ", 
+                     prctype, "\n", "\n", sep = "")
+        ms <- ms[which((ms$mz - prcmz) >= (-0.5) & (ms$mz - prcmz) <= (5)), ]
+        out <- paste(out, ">ms1peaks", "\n", sep = "")
+        for (i in 1:nrow(ms)) {
+          out <- paste(out, ms[i, 1], " ", ms[i, 2], "\n", 
+                       sep = "")
+        }
+        if (!is.null(ramclustObj$msmsint)) {
+          do <- which(ramclustObj$featclus == cl)
+          if (length(do) > 0) {
+            msms <- cbind(mz = mzs[do], 
+                          int = ramclustObj$msmsint[do])
+            msms <- msms[which(msms[, "mz"] <= (prcmz + 
+                                                  3)), , drop = FALSE]
+            msms <- msms[order(msms[, "int"], decreasing = TRUE), 
+                         , drop = FALSE]
+            if (nrow(msms) > 0) {
+              out <- paste(out, "\n", ">collision 25 ", "\n", sep = "")
+              for (i in 1:nrow(msms)) {
+                out <- paste(out, msms[i, 1], " ", msms[i, 
+                                                        2], "\n", sep = "")
+              }
+            }
+          }
+        } else {
+          do <- which(ramclustObj$featclus == cl)
+          if (length(do) > 0) {
+            msms <- cbind(mz = mzs[do], 
+                          int = ramclustObj$msint[do])
+            msms <- msms[which(msms[, "mz"] <= (prcmz + 
+                                                  3)), , drop = FALSE]
+            msms <- msms[order(msms[, "int"], decreasing = TRUE), 
+                         , drop = FALSE]
+            if (nrow(msms) > 0) {
+              out <- paste(out, "\n", ">collision ", ramclustObj$ExpDes$instrument[which(dimnames(ramclustObj$ExpDes$instrument)[[1]] == 
+                                                                                           "CE1"), 1], "\n", sep = "")
+              for (i in 1:nrow(msms)) {
+                out <- paste(out, msms[i, 1], " ", msms[i, 
+                                                        2], "\n", sep = "")
+              }
+            }
+          }
+        }
+        write(out, file = paste0("spectra/ms/", ramclustObj$cmpd[cl], 
+                                 ".ms"))
       }
     }
   }

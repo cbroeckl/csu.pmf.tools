@@ -376,7 +376,10 @@ pmfanova<-function(ramclustObj=RC,
     if(is.null(ramclustObj$msint)){    
       msint<-rep(0, length(ramclustObj$cmpd))
       for(i in 1:length(msint)){
-        msint[i]<-weighted.mean(ramclustObj$SpecAbund[,i], ramclustObj$SpecAbund[,i])
+        msint[i]<-weighted.mean(ramclustObj$SpecAbund[,i], ramclustObj$SpecAbund[,i], na.rm = TRUE)
+      }
+      if(any(is.na(msint))) {
+        msint <- as.vector(apply(ramclustObj$SpecAbund, 2, "median"))
       }
       ramclustObj$msint<-msint
     }

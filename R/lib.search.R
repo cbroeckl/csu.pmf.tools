@@ -41,7 +41,9 @@ lib.search <- function(
     lib.precursor = NULL,
     n.cores = 2,
     block.size = 100,
-    min.score = 0.5
+    min.score = 0.5,
+    mz.tolerance = 0,
+    score.type = "left"
 ) {
   
   library(Spectra)
@@ -116,17 +118,33 @@ lib.search <- function(
   #   flush.console()
   # }
   cat("spectral similarity calculations:", '\n')
+  # chunks <- chunks[1:10]
   out.specsim <- foreach(y = 1:length(chunks)) %dopar% {
     # pb.sim.fun(y = y, ymax = length(chunks))
-    Spectra::compareSpectra(exp.spectra, lib.spectra[chunks[[y]]], ms2_tolerance_in_ppm = prod.tol.ppm)
+    Spectra::compareSpectra(exp.spectra, lib.spectra[chunks[[y]]], ms2_tolerance_in_ppm = prod.tol.ppm,
+                              tolerance = mz.tolerance,
+                              score.type = "left")
     # flush.console()
     # cat(y)
     # setTxtProgressBar(pb, y)
   }
-  # cat('\n')
+  out.specsim <- do.call(cbind, out.specsim)
+  
+  ## entropy similarity
+  library(msentropy)
+  out.specsim.entropy <- foreach(y = 1:length(chunks)) %dopar% {
+    # pb.sim.fun(y = y, ymax = length(chunks))
+
+    Spectra::compareSpectra(exp.spectra, lib.spectra[chunks[[y]]], MAPFUN = Spectra::joinPeaksNone, FUN = msentropy::msentropy_similarity)
+    # flush.console()
+    # cat(y)
+    # setTxtProgressBar(pb, y)
+  }
+  out.specsim.entropy <- do.call(cbind, out.specsim.entropy)
+  cat('\n')
   # close(pb)
   
-  out.specsim <- do.call(cbind, out.specsim)
+
   
   ## optionally perform retention index similarity
   if(!is.null(exp.ri)) {
@@ -161,18 +179,26 @@ lib.search <- function(
   ## optionally perform precursor similarity acceptance criterion
   if(!is.null(exp.precursor)) {
     out.p <-  foreach(y = 1:length(chunks)) %dopar% {
-      round(outer(exp.precursor, lib.precursor[chunks[[y]]], '-'), digits = 4)
+      tmp <- outer(exp.precursor, lib.precursor[chunks[[y]]], '-')
+      #tmp <- round(1000000*(tmp/lib.precursor[chunks[[y]]], digits = 2)
+      tmp
     }
     out.p <- do.call(cbind, out.p)
+    out.ppm <- 1000000 * out.p[,1:ncol(out.p)]/lib.precursor #[1:1000]
   }
-
   
   ## prepare output
   ## get all spectral matches above min.score threshold
   out <- which(out.specsim >= min.score, arr.ind = TRUE)
+  out <- rbind(out, which(out.specsim.entropy >= min.score, arr.ind = TRUE))
+  out <- out[!duplicated(out),]
+  row.names(out) <- NULL
+  # ind <- out
   dimnames(out)[[2]] <- c("experimental.index", "library.index")
   out <- cbind(out, 
-               "spectral.similarity" = out.specsim[out])
+               "spectral.similarity" = round(out.specsim[out[,c(1:2)]], digits = 3),
+               "spectral.similarity.entropy" = round(out.specsim.entropy[out[,c(1:2)]], digits = 3)
+               )
   
   ## if retention time/index data is compared, append this to above
   if(any(ls() == "out.r")) {
@@ -195,9 +221,10 @@ lib.search <- function(
   if(any(ls() == "out.p")) {
     out <- cbind(
       out, 
-      "exp.mass" = out.p[out[,1:2]], 
-      "lib.mass" = exp.precursor[out[,1]],
-      "precursor.error.ppm" = round((out.p[out[,1:2]] / exp.precursor[out[,1]]), digits = 2)
+      "exp.mass" = exp.precursor[out[,1]], 
+      "lib.mass" = lib.precursor[out[,2]],
+      "precursor.error.da" = out.p[out[,c(1,2)]],
+      "precursor.error.ppm" = out.ppm[out[,c(1,2)]]
     )
   }
   

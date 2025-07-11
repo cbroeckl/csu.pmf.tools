@@ -12,27 +12,19 @@ normalize.intensity <- function(x, ...) {
   x
 }
 
-round.masses <- function(x, ...) {
-  x[, 1] <- round(x[, 1])
-  x
-}
+# round.masses <- function(x, ...) {
+#   x[, 1] <- round(x[, 1])
+#   x
+# }
 
 remove.low.intensity.signals <- function(x, min.int, ...) {
   x.orig <- x
   x <- x[which(x[,2] >= (max(x[,2])*min.int)),,drop = FALSE]
-  # if(nrow(x) < 2) {
-  #   x.orig
-  # } else {
-    x
-  # }
+  x
 }
 
 filter.by.mass <- function(x, mz.min, mz.max, ...) {
   x.orig <- x
   x <- x[which(x[,1] >= mz.min & x[,1] <= mz.max),,drop = FALSE]
-  # if(nrow(x) < 2) {
-  #   x.orig
-  # } else {
-    x
-  # }
+  x
 }

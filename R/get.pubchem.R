@@ -1,9 +1,9 @@
-#' rc.cmpd.get.pubchem
+#' get.pubchem
 #'
 #' use pubchem rest and view APIs to retrieve structures, CIDs (if a name or inchikey is given), synonyms, and optionally vendor data, when available. 
 #' @details useful for moving from chemical name to digital structure representation. greek letters are assumed to be 'UTF-8' encoded, and are converted to latin text before searching.   if you are reading in your compound name list, do so with 'encoding' set to 'UTF-8'. 
-#' @param ramclustObj RAMClust Object input.  if used, ramclustObj$CID, ramclustObj$inchikey, and ramclustObj$ann are used as input, in that order, and ramclustObj is returned with $pubchem slot appended.
 #' @param cmpd.names character vector.  i.e. c("caffeine", "theobromine", "glucose")
+#' @param cmpd.cas character vector.  
 #' @param cmpd.cid numeric integer vector.  i.e. c(2519, 5429, 107526)
 #' @param cmpd.inchikey character vector.  i.e. c("RYYVLZVUVIJVGH-UHFFFAOYSA-N", "YAPQBXQYLJRXSA-UHFFFAOYSA-N", "GZCGUPFRVQAUEE-SLPGGIOYSA-N")
 #' @param cmpd.smiles character vector.  i.e. c("CN1C=NC2=C1C(=O)N(C(=O)N2C)C", "CN1C=NC2=C1C(=O)NC(=O)N2C")
@@ -13,12 +13,10 @@
 #' @param priority.vendors charachter vector.  i.e. c("MyFavoriteCompany", "MySecondFavoriteCompany").  If these vendors are found, the URL returned is from priority vendors. Priority is given by order input by user. 
 #' @param get.properties logical.  if TRUE, physicochemical property data are returned for each compound with a matched CID.
 #' @param get.synonyms = TRUE. logical.  if TRUE, retrieve pubchem synonyms.  returned to $synonyms slot
-#' @param find.short.lipid.name = TRUE. logical.  If TRUE, and get.synonyms = TRUE, looks for lipid short hand names in synonyms list (i.e. PC(36:6)). returned to $short.name slot.
-#' @param find.short.synonym = TRUE. logical.  If TRUE, and get.synonyms = TRUE, looks for lipid short synonyms, with prioritization for names with fewer numeric characters (i.e. database accession numbers or CAS numbers). returned to $short.name slot. 
-#' @param find.cas = TRUE. logical.  If TRUE, and get.synonyms = TRUE, looks for a string matching cas format.
+#' @param find.short.lipid.name = TRUE. logical.  If TRUE, and get.synonyms = TRUE, looks for lipid short hand names in synonyms list (i.e. PC(36:6)). returned to $short.name slot.  Short names are assigned only if assign.short.names = TRUE.
+#' @param find.short.synonym = TRUE. logical.  If TRUE, and get.synonyms = TRUE, looks for lipid short synonyms, with prioritization for names with fewer numeric characters (i.e. database accession numbers or CAS numbers). returned to $short.name slot.  Short names are assigned only if assign.short.names = TRUE.
 #' @param max.name.length = 20.  integer.  If names are longer than this value, short names will be searched for, else, retain original name.
-#' @param all.props logical. If TRUE, all pubchem properties (https://pubchemdocs.ncbi.nlm.nih.gov/pug-rest$_Toc494865567) are returned.  If false, only a subset (faster). which.props, when not NULL, takes precence.
-#' @param which.props charcater vector. default = NULL. can list specifically which properties you wish to have returned.  i.e. c('MonoisotopicMass', 'TPSA', 'HBondDonorCount', 'HBondAcceptorCount').  which.props, when specified, takes precedence over all.props.
+#' @param all.props logical.  If TRUE, all pubchem properties (https://pubchemdocs.ncbi.nlm.nih.gov/pug-rest$_Toc494865567) are returned.  If false, only a subset (faster).
 #' @param get.bioassays logical. If TRUE, return a table summarizing existing bioassay data for that CID. 
 #' @param get.pathways logical.  If TRUE, return a table of metabolic pathways for that CID.
 #' @param write.csv logical.  If TRUE, write csv files of all returned pubchem data. 
@@ -30,33 +28,31 @@
 #' @export 
 #' 
 
-rc.cmpd.get.pubchem <- function(
-    ramclustObj = NULL,
+get.pubchem <- function(
     search.name = NULL,
     cmpd.names = NULL,
+    cmpd.cas = NULL,
     cmpd.cid = NULL,
     cmpd.inchikey = NULL,
+    use.short.inchikey = TRUE,
     cmpd.smiles = NULL,
     use.parent.cid = FALSE,
     manual.entry = FALSE,
-    get.vendors = TRUE,
+    get.vendors = FALSE,
     priority.vendors = c("Sigma Aldrich", "Alfa Chemistry", "Acros Organics", "VWR", 
                          "Alfa Aesar", "molport", "Key Organics", "BLD Pharm"),
     get.properties = TRUE,
     all.props = FALSE,
-    which.props = NULL,
     get.synonyms = FALSE,
     get.pubchem.name = TRUE,  
     get.cid.from.name = TRUE,
     find.short.lipid.name = FALSE,
     find.short.synonym = FALSE,
-    find.cas = TRUE,
-    max.name.length = 40,
     get.bioassays = FALSE,
     get.pathways = FALSE,
     write.csv = FALSE,
     cmpds.per.call = 50,
-    threads = 2
+    threads = 5
 ) {
   
   ## function to close failed pubchem queries to prevent 
@@ -124,22 +120,24 @@ rc.cmpd.get.pubchem <- function(
   )
   rm(out)
   
-  if(!is.null(ramclustObj)) {
-    cmpd.names <- ramclustObj$ann
-    if(!is.null(ramclustObj$inchikey)) {
-      cmpd.inchikey <- ramclustObj$inchikey
-    }
-  }
-  
   ## check that lengths of cmpd.* make sense, and standardize
   l <- c("cmpd.names" = length(cmpd.names), 
          "cmpd.cid" = length(cmpd.cid), 
          "cmpd.inchikey" = length(cmpd.inchikey),
-         "cmpd.smiles" = length(cmpd.smiles)
+         "cmpd.smiles" = length(cmpd.smiles),
+         "cmpd.cas" = length(cmpd.cas)
   )
+  
   if(l["cmpd.names"] != max(l) & l["cmpd.names"] > 0) {
     stop(
       paste(" Length cmpd.names = ", l['cmpd.names'], "while length", names(l)[which.max(l)], "=", max(l), '\n',
+            " - these must be either exactly the same length or one must be NULL", sep = " ")
+    )
+  }
+  
+  if(l["cmpd.cas"] != max(l) & l["cmpd.cas"] > 0) {
+    stop(
+      paste(" Length cmpd.cas = ", l['cmpd.cas'], "while length", names(l)[which.max(l)], "=", max(l), '\n',
             " - these must be either exactly the same length or one must be NULL", sep = " ")
     )
   }
@@ -169,12 +167,14 @@ rc.cmpd.get.pubchem <- function(
   if(l["cmpd.cid"] < max(l)) cmpd.cid <- rep(NA, max(l))
   if(l["cmpd.inchikey"] < max(l)) cmpd.inchikey <- rep(NA, max(l))
   if(l["cmpd.smiles"] < max(l)) cmpd.smiles <- rep(NA, max(l))
+  if(l["cmpd.cas"] < max(l)) cmpd.cas <- rep(NA, max(l))
   
   ## store original data in data.frame
   d <- data.frame("user.cmpd" = cmpd.names, 
                   "user.cid" = cmpd.cid,
                   "user.inchikey" = cmpd.inchikey,
-                  "use.smiles" = cmpd.smiles)
+                  "user.smiles" = cmpd.smiles,
+                  "user.cas" = cmpd.cas)
   
   pubchem <- list()
   
@@ -182,6 +182,9 @@ rc.cmpd.get.pubchem <- function(
   cmpd.names <- trimws(cmpd.names)
   cmpd.names[which(nchar(cmpd.names) < 1)] <- NA
   cmpd.names <- gsub(" ", "%20", cmpd.names)
+  cmpd.cas <- trimws(cmpd.cas)
+  cmpd.cas[which(nchar(cmpd.cas) < 1)] <- NA
+  cmpd.cas <- gsub(" ", "%20", cmpd.cas)
   cmpd.inchikey <- trimws(cmpd.inchikey)
   cmpd.inchikey[which(nchar(cmpd.inchikey) < 1)] <- NA
   cmpd.cid <- trimws(cmpd.cid)
@@ -189,10 +192,7 @@ rc.cmpd.get.pubchem <- function(
   cmpd.smiles <- trimws(cmpd.smiles)
   cmpd.smiles[which(nchar(cmpd.smiles) < 1)] <- NA
   
-  
   greek <- read.csv(paste(find.package("csu.pmf.tools"), "/params/greek.csv", sep=""), header=TRUE, encoding = "UTF-8", stringsAsFactors = FALSE)
-  
-  
   
   for(i in 1:nrow(greek)) {
     cmpd.names <- gsub(greek[i,2], greek[i,1], cmpd.names)
@@ -323,14 +323,61 @@ rc.cmpd.get.pubchem <- function(
     }
   }
   
+  ## get missing CIDs from CAS numbers next - this is a synonym search, just as if it were a name
+  do.ind <- which(is.na(cmpd.cid) & !is.na(cmpd.cas))
+  do <- cmpd.cas[do.ind]
+  if(length(do) > 0) {
+    cat("getting cid from cas numbers", '\n')
+    tmp.res <- foreach(i = 1:length(do)) %dopar% {
+      # for(i in 1:length(do)) {
+      closePubchemConnections()
+      Sys.sleep(0.5)
+      # cat(do[i])
+      html <- paste0("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/",
+                     do[i],
+                     "/property/", "inchikey", "/JSON")
+      # html <- "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/8007-46-3/property/inchikey/JSON"
+      out <- tryCatch(
+        {
+          jsonlite::read_json(html)
+        },
+        error=function(cond) {
+          closePubchemConnections()
+          return(NA)
+        },
+        warning=function(cond) {
+          closePubchemConnections()
+          return(NA)
+        },
+        finally={
+          closePubchemConnections()
+          cons <- suppressWarnings(showConnections(all = TRUE)); rm(cons)
+        }
+      )
+      if(!is.na(out[1])) {
+        tmp <- lapply(1:length(out$PropertyTable$Properties),
+                      FUN = function(x) {
+                        unlist(out$PropertyTable$Properties[[x]])
+                      })
+        tmp <- data.frame(t(data.frame(tmp, stringsAsFactors = FALSE)), stringsAsFactors = FALSE)
+        tmp <- tmp[order(tmp[,"CID"], decreasing = TRUE),, drop = FALSE]
+        # cmpd.cid[do.ind[i]] <- tmp[1, "CID"]
+        return(c(do[i], tmp[1, "CID"]))
+      } else {return(c(NA, NA))}
+    }
+    for(i in 1:length(tmp.res)) {
+      if(is.na(tmp.res[[i]][1])) next
+      cmpd.cid[which(cmpd.cas == tmp.res[[i]][1])] <- tmp.res[[i]][2]
+    }
+  }
+  
+  
+  
   ## get missing CIDs from names next
   
   if(get.cid.from.name) {
     do.ind <- which(is.na(cmpd.cid) & !is.na(cmpd.names))
     do <- cmpd.names[do.ind]
-    if(length(do) == 0) break
-    cat("length do:", length(do), '\n')
-    # cat(do)
     if(length(do) > 0) {
       cat("getting cid from names", '\n')
       tmp.res <- foreach(i = 1:length(do)) %dopar% {
@@ -375,12 +422,79 @@ rc.cmpd.get.pubchem <- function(
         cmpd.cid[which(cmpd.names == tmp.res[[i]][1])] <- tmp.res[[i]][2]
       }
     }
-    
-    cid <- cmpd.cid
   }
   
   ## get missing CIDs from short inchikeys next
-  
+  if(use.short.inchikey) {
+    try.short <-  which(is.na(cmpd.cid) & !is.na(cmpd.inchikey))
+    short.inchikey <- sapply(1:length(cmpd.inchikey), FUN = function(x) unlist(strsplit(cmpd.inchikey[x], "-", fixed = TRUE))[1])
+    if(length(try.short) > 0) {
+      cat("getting cid from first block of inchikey", '\n')
+      do <- short.inchikey[try.short]
+      do.l <- split(do, ceiling(seq_along(do)/cmpds.per.call))
+      
+      tmp.res <- foreach::foreach(i = 1:length(do.l), .inorder = TRUE) %dopar% {
+        closePubchemConnections()
+        # keep <- which(!do.l[[i]]=="NA")
+        keep <- 1:length(do.l[[i]])
+        if(length(keep)>0) {
+          Sys.sleep(0.5)
+          
+          html <- paste0("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/inchikey/",
+                         paste0(do.l[[i]][keep], collapse = ","),
+                         "/property/", "inchikey", "/JSON")
+          out <- tryCatch(
+            {
+              jsonlite::read_json(html)
+            },
+            error=function(cond) {
+              closePubchemConnections()
+              return(NA)
+            },
+            warning=function(cond) {
+              closePubchemConnections()
+              return(NA)
+            },
+            finally={
+              closePubchemConnections()
+            }
+          )
+          if(!is.na(out[1])) {
+            tmp <- lapply(1:length(out$PropertyTable$Properties),
+                          FUN = function(x) {
+                            unlist(out$PropertyTable$Properties[[x]])
+                          })
+            tmp <- data.frame(t(data.frame(tmp, stringsAsFactors = FALSE)), stringsAsFactors = FALSE)
+            tmp <- tmp[order(tmp[,"CID"], decreasing = TRUE),, drop = FALSE]
+            out <- sapply(1:length(do.l[[i]][keep]), 
+                          FUN = function(x) {
+                            o <- tmp[grep(do.l[[i]][keep][x], tmp[,"InChIKey"])[1], "CID"]
+                            if(length(0) == 0) {
+                              o <- NA
+                            }
+                            o
+                          }
+            )
+            # names(out) <- do.l[[i]][keep]
+            # out <- sort(out)
+          } else {out <- NA}
+          return(out)
+          cat(i*cmpd.per.call, " ")
+        }
+      }
+      tmp.res <- unlist(tmp.res)
+      # for(i in length(tmp.res):1) {
+      #   inch.ind <- which(names(tmp.res) == names(tmp.res)[i])
+      #   if(length(inch.ind) > 1 ) {
+      #     tmp.res <- tmp.res[-max(inch.ind)]
+      #   }
+      # }
+      
+      cmpd.cid[try.short] <- as.numeric(tmp.res)
+      d$user.short.inchikey <- short.inchikey
+      
+    }
+  }
   
   ### offer opportunity to revise CIDs with manual input, if need be. use name only (inchikey should be unambiguous)
   if(manual.entry){
@@ -410,12 +524,14 @@ rc.cmpd.get.pubchem <- function(
   cid <- cmpd.cid
   
   if(all(is.na(cid))) {
-    stop("no CIDs found based in input name, inchikey and/or smiles", '\n')
+    stop("no CIDs found based in input data", '\n')
   }
   
   d <- data.frame(d, "cmpd.cid" = cmpd.cid, stringsAsFactors = FALSE)
   
   ## find.parent.cid, if TRUE
+  ## will replace existing cid vector with new parent cid
+  ## cid vector is CID used to return physicochemical properties and other data. 
   ## can't parallelize via foreach  - unnamed parent CIDs returned, raising mapping questions
   if(use.parent.cid) {
     cat("getting parent cid from cid", '\n')
@@ -514,9 +630,6 @@ rc.cmpd.get.pubchem <- function(
     pubchem.name <- rep(NA, length(cid))
   }
   
-  
-  
-  
   d <- data.frame(d, "pubchem.name" = pubchem.name, stringsAsFactors = FALSE)
   pubchem$pubchem <- d
   
@@ -586,9 +699,6 @@ rc.cmpd.get.pubchem <- function(
         'HBondAcceptorCount'
       )
     }
-    if(!is.null(which.props)) {
-      props <- which.props
-    }
     
     properties <- d[,0]
     tmp.res <- foreach::foreach(i = 1:length(cid.l)) %dopar% {
@@ -645,12 +755,6 @@ rc.cmpd.get.pubchem <- function(
     n.vendors <- rep(NA, nrow(d))
     vendor.urls <- rep(NA, nrow(d))
     pubchem.vendors.url <-rep(NA, nrow(d))
-    out.df <- data.frame(
-      cid = vector(length = 0, mode = 'integer'),
-      vendor = vector(length = 0, mode = 'character'),
-      product.number = vector(length = 0, mode = 'character'),
-      url = vector(length = 0, mode = 'character')
-    )
     for(i in do) {
       Sys.sleep(0.5)
       out <- tryCatch(
@@ -684,44 +788,41 @@ rc.cmpd.get.pubchem <- function(
                                out$SourceCategories$Categories[[cat.select]]$Sources[[x]]$"SourceName"
                              }
       )
-      vendor.product.numbers <- sapply(1:length(out$SourceCategories$Categories[[cat.select]]$Sources),
-                                       FUN = function(x) {
-                                         out$SourceCategories$Categories[[cat.select]]$Sources[[x]]$"RegistryID"
-                                       }
-      )
-      vendor.product.url <- sapply(1:length(out$SourceCategories$Categories[[cat.select]]$Sources),
-                                       FUN = function(x) {
-                                         out$SourceCategories$Categories[[cat.select]]$Sources[[x]]$"SourceRecordURL"
-                                       }
-      ) 
-      for(i in 1:length(vendor.product.url)) {
-        if(is.null(vendor.product.url[[i]])) {
-          vendor.product.url[[i]] <- NA
+      for(j in priority.vendors) {
+        use <- agrep(j, vendor.names,  max.distance = 0.2)
+        if(length(use) > 0) {
+          vendor.url <- out$SourceCategories$Categories[[cat.select]]$Sources[[use[1]]]$SourceRecordURL[1]
+          if(length(vendor.url) == 0) vendor.url <- NA
+          vendor.urls[i] <- vendor.url
+          break
         }
       }
-      vendor.product.url <- unlist(vendor.product.url)
-      length(vendor.names)
-      length(vendor.product.numbers)                                 
-      length(vendor.product.url)
-      out.tmp <- data.frame(
-        'cid' = rep(cid[i], length(vendor.names)),
-        'vendor' = vendor.names,
-        'product.number' = vendor.product.numbers,
-        'url' = vendor.product.url
-      )
-      out.df <- rbind(out.df, out.tmp)
-      
+      if(is.na(vendor.urls[i]))  {
+        vendor.url <- out$SourceCategories$Categories[[cat.select]]$Sources[[sample((1:length(vendor.names)), 1)]]$"SourceRecordURL"[1]
+        if(length(vendor.url) == 0) vendor.url <- ""
+        vendor.urls[i] <- vendor.url
+      }
+      pubchem.vendors.url[do] <- urls
     }
     
-    pubchem$vendors <- out.df
+    vendors <- data.frame(vendors, 
+                          "pubchem.vendors.url" = pubchem.vendors.url,
+                          "n.vendors" = n.vendors, 
+                          "vendor.url" = vendor.urls, 
+                          stringsAsFactors = FALSE)
+    pubchem$vendors <- vendors
     
   }
   
   if(get.synonyms) {
     cat("getting synonym data from cid", '\n')
     ## need to try to parallelize? 
-    pubchem$synonyms <- as.list(rep(NA, length(ramclustObj$cmpd)))
-    names(pubchem$synonyms) <- ramclustObj$cmpd
+    pubchem$synonyms <- as.list(rep(NA, length(cid)))
+    names(pubchem$synonyms) <- cid
+    
+    if(find.short.lipid.name | find.short.synonym) {
+      pubchem$short.name <- rep(NA, nrow(d))
+    }
     
     for(i in 1:length(cid.l)) {
       keep <- which(!cid.l[[i]]=="NA")
@@ -750,77 +851,71 @@ rc.cmpd.get.pubchem <- function(
       
       for(j in 1:length(out$InformationList$Information)) {
         on <- which(cid ==  cid.l[[i]][keep[j]])
-        if(length(on)==0) {next} else {
-          for(k in 1:length(on)) {
-            tmp <- out$InformationList$Information[[j]]
-            if(is.null(tmp$Synonym)) next
-            syns <- unlist(tmp$Synonym)
-            pubchem$synonyms[[on[k]]] <- syns
+        if(length(on)==0) next
+        if(length(on) > 1) {
+          if(!(any(ls() == "multi.cid"))) {
+            multi.cid <- rep(1, 1)
+            names(multi.cid)[1] <- cid.l[[i]][keep[j]]
+            on <- on[1]
+          } else {
+            if(any(names(multi.cid) == cid.l[[i]][keep[j]])) {
+              which.multi <- which(names(multi.cid) == cid.l[[i]][keep[j]])
+              multi.cid[which.multi] <- multi.cid[which.multi] + 1
+              on <- on[multi.cid[which.multi]]
+            } else {
+              multi.cid <- c(multi.cid, 1)
+              names(multi.cid)[length(multi.cid)] <- cid.l[[i]][keep[j]]
+              on <- on[1]
+            }
+          }
+        }
+        tmp <- out$InformationList$Information[[j]]
+        if(is.null(tmp$Synonym)) next
+        syns <- unlist(tmp$Synonym)
+        pubchem$synonyms[[on]] <- syns
+        
+        if(find.short.lipid.name) {
+          if(length(pubchem$synonyms[[on]]) > 1) {
+            lipid.like <- stringr::str_detect(pubchem$synonyms[[on]], "\\([0-9]{1,2}\\:[0-9]{1,2}\\)")
+            short.name <- (nchar(pubchem$synonyms[[on]]) <= max.name.length)
+            keep <- which(lipid.like & short.name)
+            tars <- pubchem$synonyms[[on]][keep]
+            if(length(tars) > 0) {
+              nc <- nchar(tars)
+              pubchem$short.name[on] <- tars[which.min(nc)]
+            }
+          }
+        }
+        
+        if(find.short.synonym & is.na(pubchem$short.name[on])) {
+          if(length(pubchem$synonyms[[on]]) > 1) {
+            letter.rich <- nchar(pubchem$synonyms[[on]])
+            nchars <- nchar(pubchem$synonyms[[on]])
+            pattern <- "[[:digit:]]+"
+            numbers <- sapply(1:length(pubchem$synonyms[[on]]), FUN = function(k) {
+              nchar(paste(unlist(regmatches(pubchem$synonyms[[on]][k], 
+                                            gregexpr(pattern, pubchem$synonyms[[on]][k]))), 
+                          collapse = "", sep = ""))
+            })
+            letter.rich <- 1- (numbers/nchars)
+            use <- which(nchars < max.name.length & letter.rich > 0.6)
+            if(length(use) == 0) {
+              use <- which(nchars < max.name.length & letter.rich > 0.3)
+            }
+            if(length(use) == 0) {
+              use <- which(nchars < max.name.length)
+            }
+            if(length(use) == 0) {
+              use <- which.min(nchars)
+            }
+            if(length(use) == 0) next
+            use <- use[1]
+            pubchem$short.name[on] <- pubchem$synonyms[[on]][use]
           }
         }
       }
     }
-    
-    if(find.short.lipid.name) {
-      lipid.short.name <- rep(NA, nrow(d))
-      for(j in 1:length(lipid.short.name)) {
-        if(length(pubchem$synonyms[[j]]) > 0) {
-          syns <- pubchem$synonyms[[j]]
-          lipid.like <- stringr::str_detect(syns, "\\([0-9]{1,2}\\:[0-9]{1,2}\\)")
-          short.name <- (nchar(syns) <= max.name.length)
-          keep <- which(lipid.like & short.name)
-          if(length(keep) == 0) next
-          lipid.short.name <- syns[keep[1]]
-        }
-      }
-      pubchem$pubchem$lipid.short.name <- lipid.short.name
-    }
-    
-    if(find.short.synonym) {
-      short.synonym <- rep(NA, nrow(d))
-      for(j in 1:length(short.synonym)) {
-        if(length(pubchem$synonyms[[j]]) > 0) {
-          syns <- pubchem$synonyms[[j]]
-          nchars <- nchar(syns)
-          pattern <- "[[:digit:]]+"
-          numbers <- sapply(1:length(syns), FUN = function(k) {
-            nchar(paste(unlist(regmatches(syns[k], 
-                                          gregexpr(pattern, syns[k]))), 
-                        collapse = "", sep = ""))
-          })
-          letter.rich <- 1- (numbers/nchars)
-          use <- which(nchars < max.name.length & letter.rich > 0.6)
-          if(length(use) == 0) {
-            use <- which(nchars < max.name.length & letter.rich > 0.3)
-          }
-          if(length(use) == 0) {
-            use <- which(nchars < max.name.length)
-          }
-          if(length(use) == 0) {
-            use <- which.min(nchars)
-          }
-          if(length(use) == 0) next
-          use <- use[1]
-          short.synonym[j] <- syns[use]
-        }
-      }
-    }
-    
-    if(find.cas) {
-      cas <- rep(NA, nrow(d))
-      for(j in 1:length(cas)) {
-        if(length(pubchem$synonyms[[j]]) > 0) {
-          syns <- pubchem$synonyms[[j]]
-          cas.like <- which(stringr::str_detect(syns, "[:digit:]{2,7}[-][:digit:]{2}[-][:digit:]{1}"))
-          if(length(cas.like) == 0) next
-          cas[j] <- syns[cas.like[1]]
-        }
-      }
-      pubchem$pubchem$cas <- cas
-    }
-    
   }
-  
   
   
   if(get.bioassays) {
@@ -894,13 +989,6 @@ rc.cmpd.get.pubchem <- function(
     pubchem$pathways <- pathways
   }
   
-  for(i in 1:length(pubchem)) {
-    if(!is.data.frame(pubchem[[i]])) next
-    if(nrow(pubchem[[i]]) == length(ramclustObj$cmpd)) {
-      pubchem[[i]] <- data.frame("cmpd" = ramclustObj$cmpd, pubchem[[i]])
-    }
-  }
-  
   if(write.csv) {
     if(is.null(search.name)) {search.name = "pubchem.data"}
     dir.create(search.name)
@@ -916,11 +1004,7 @@ rc.cmpd.get.pubchem <- function(
     }
   }
   
-  if(!is.null(ramclustObj)) {
-    ramclustObj$pubchem <- pubchem
-    return(ramclustObj)
-  } else {
-    return(pubchem)
-  }
+  return(pubchem)
+  
   
 }
