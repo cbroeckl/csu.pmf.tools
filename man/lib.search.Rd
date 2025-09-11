@@ -18,7 +18,9 @@ lib.search(
   lib.precursor = NULL,
   n.cores = 2,
   block.size = 100,
-  min.score = 0.5
+  min.score = 0.5,
+  mz.tolerance = 0,
+  score.type = "left"
 )
 }
 \arguments{
